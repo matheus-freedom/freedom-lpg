@@ -1,0 +1,8 @@
+{
+  "name": "FreedomLPG [app oficial]",
+  "description": "A comprehensive platform for Freedom Language Center teachers to generate AI-powered lesson plans and exams focused on conversation.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
