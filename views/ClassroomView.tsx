@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LessonPlan, QuizQuestion } from '../types';
-import { GoogleGenAI } from "@google/genai";
-import { generateLessonImage } from '../services/geminiService';
-// AQUI ESTÁ A MUDANÇA PRINCIPAL: Importamos do storageService
+import { generateLessonImage, generateAudioFromText, translateWord } from '../services/geminiService';
 import { getPlanById, updateLessonPlan } from '../services/storageService';
 
-// --- Funções Auxiliares de Áudio (Mantidas iguais) ---
+// --- Funções Auxiliares de Áudio ---
 function createWavBlob(pcmData: Uint8Array, sampleRate: number): Blob {
   const buffer = new ArrayBuffer(44 + pcmData.length);
   const view = new DataView(buffer);
@@ -22,8 +20,8 @@ function createWavBlob(pcmData: Uint8Array, sampleRate: number): Blob {
   writeString(8, 'WAVE');
   writeString(12, 'fmt ');
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM format
-  view.setUint16(22, 1, true); // Mono
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, sampleRate * 2, true);
   view.setUint16(32, 2, true);
@@ -78,12 +76,10 @@ const ClassroomView: React.FC = () => {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // --- CARREGAMENTO DO PLANO (CORRIGIDO PARA FIREBASE) ---
   useEffect(() => {
     const loadPlan = async () => {
       if (!id) return;
       try {
-        // Busca do Firebase ao invés do localStorage
         const found = await getPlanById(id);
         if (found) {
           setPlan(found);
@@ -108,6 +104,7 @@ const ClassroomView: React.FC = () => {
     }
   }, [playbackRate]);
 
+  // ── TRADUÇÃO: agora usa geminiService (chave protegida no servidor) ──
   const handleTranslate = async (word: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const cleanWord = word.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g,"").trim();
@@ -117,14 +114,9 @@ const ClassroomView: React.FC = () => {
     setIsTranslating(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: [{ parts: [{ text: `Translate the English word "${cleanWord}" to Portuguese. Provide ONLY the Portuguese word, nothing else.` }] }],
-      });
-      const result = response.text || "Error";
+      const result = await translateWord(cleanWord);
       setTranslation(prev => prev ? { ...prev, translated: result.trim() } : null);
-    } catch (err) {
+    } catch {
       setTranslation(prev => prev ? { ...prev, translated: "Error" } : null);
     } finally {
       setIsTranslating(false);
@@ -139,9 +131,6 @@ const ClassroomView: React.FC = () => {
       const img = await generateLessonImage(prompt);
       if (img) {
         setDynamicImage(img);
-        // --- SALVAMENTO DA IMAGEM (CORRIGIDO PARA FIREBASE) ---
-        // Agora usamos o updateLessonPlan que já sabe lidar com o Firebase
-        // Nota: Se a imagem for muito pesada, o ideal seria tratar isso no storageService como fizemos antes
         await updateLessonPlan(plan.id, { illustrationImage: img });
       }
     } catch (e) {
@@ -151,40 +140,29 @@ const ClassroomView: React.FC = () => {
     }
   };
 
+  // ── ÁUDIO: agora usa geminiService com suporte a accentInstruction ──
   const handleGenerateAudio = async (text: string) => {
     if (isAudioLoading || isAudioReady) return;
 
     setIsAudioLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text }] }],
-        config: {
-          responseModalities: ['AUDIO'],
-          speechConfig: { 
-            voiceConfig: { 
-              prebuiltVoiceConfig: { 
-                voiceName: plan?.audioConfig?.voiceName || 'Zephyr' 
-              } 
-            } 
-          },
-        },
-      });
+      const voiceName = plan?.audioConfig?.voiceName || 'Zephyr';
+      const accentInstruction = (plan?.audioConfig as any)?.accentInstruction;
 
-      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      const base64Audio = await generateAudioFromText(text, voiceName, accentInstruction);
+
       if (!base64Audio) throw new Error("Audio error");
 
       const pcmBytes = decode(base64Audio);
       const wavBlob = createWavBlob(pcmBytes, 24000);
       const audioUrl = URL.createObjectURL(wavBlob);
-      
+
       const audio = new Audio(audioUrl);
       audio.onloadedmetadata = () => setDuration(audio.duration);
       audio.ontimeupdate = () => setCurrentTime(audio.currentTime);
       audio.onended = () => setIsPlaying(false);
       audioRef.current = audio;
-      
+
       setIsAudioReady(true);
     } catch (e) {
       console.error("Audio generation failed", e);
@@ -231,7 +209,6 @@ const ClassroomView: React.FC = () => {
     </div>
   );
 
-  // Function to clean "Reading:" and other prefixes from titles aggressively
   const cleanTitle = (title: string) => {
     return title
       .replace(/^Reading:?\s*/i, '')
