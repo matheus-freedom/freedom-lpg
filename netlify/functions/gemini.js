@@ -8,9 +8,10 @@
 const { GoogleGenAI, Modality } = require("@google/genai");
 
 const ALLOWED_ORIGINS = [
-  "https://seu-lpg.netlify.app",   // ← substitua pela URL real do LPG
+  "https://freedomlpg.netlify.app",  // URL real do LPG
   "http://localhost:3000",
   "http://localhost:5173",
+  "http://localhost:8888",
 ];
 
 const buildHeaders = (origin) => {
@@ -104,8 +105,6 @@ exports.handler = async (event) => {
     if (action === "generateAudio") {
       const { text, voiceName, accentInstruction } = payload;
 
-      // Se houver instrução de sotaque, montamos um systemInstruction
-      // para o modelo aplicar o sotaque desejado sobre a voz base
       const systemInstruction = accentInstruction
         ? `You are a text-to-speech narrator. Read the text naturally ${accentInstruction}. Maintain this accent consistently throughout the entire reading.`
         : undefined;
@@ -121,6 +120,7 @@ exports.handler = async (event) => {
           ...(systemInstruction && { systemInstruction }),
         },
       });
+
       const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       return {
         statusCode: 200,
