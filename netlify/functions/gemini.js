@@ -1,7 +1,14 @@
+// ============================================================
+// FREEDOMLPG — Netlify Function: /netlify/functions/gemini
+// ------------------------------------------------------------
+// Protege a chave Gemini e as credenciais Firebase
+// do FreedomLPG (Lesson Plan Generator)
+// ============================================================
+
 const { GoogleGenAI, Modality } = require("@google/genai");
 
 const ALLOWED_ORIGINS = [
-  "https://seu-lpg.netlify.app",
+  "https://seu-lpg.netlify.app",   // ← substitua pela URL real do LPG
   "http://localhost:3000",
   "http://localhost:5173",
 ];
@@ -29,6 +36,7 @@ exports.handler = async (event) => {
   }
 
   if (!process.env.GEMINI_API_KEY) {
+    console.error("GEMINI_API_KEY não configurada!");
     return { statusCode: 500, headers, body: JSON.stringify({ error: "Configuração incompleta." }) };
   }
 
@@ -43,52 +51,105 @@ exports.handler = async (event) => {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   try {
+
+    // ---------------------------------------------------------
+    // AÇÃO: Gerar plano de aula (generateLessonPlan)
+    // ---------------------------------------------------------
     if (action === "generateContent") {
       const { model, contents, config } = payload;
       const response = await ai.models.generateContent({ model, contents, config });
-      return { statusCode: 200, headers, body: JSON.stringify({ text: response.text }) };
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ text: response.text }),
+      };
     }
 
+    // ---------------------------------------------------------
+    // AÇÃO: Gerar imagem da aula (generateLessonImage)
+    // ---------------------------------------------------------
     if (action === "generateImage") {
       const { prompt } = payload;
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-image",
-        contents: { parts: [{ text: `A high-quality, professional, cinematic illustration. Style: clean, inspiring, modern. Topic: ${prompt}. DO NOT show any text, letters, UI elements, or logos.` }] },
+        contents: {
+          parts: [{
+            text: `A high-quality, professional, cinematic illustration. Style: clean, inspiring, modern. Topic: ${prompt}. DO NOT show any text, letters, UI elements, or logos.`
+          }]
+        },
         config: { imageConfig: { aspectRatio: "3:4" } },
       });
+
       let imageData = null;
       if (response.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) { imageData = `data:image/png;base64,${part.inlineData.data}`; break; }
+          if (part.inlineData) {
+            imageData = `data:image/png;base64,${part.inlineData.data}`;
+            break;
+          }
         }
       }
-      return { statusCode: 200, headers, body: JSON.stringify({ imageData }) };
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ imageData }),
+      };
     }
 
+    // ---------------------------------------------------------
+    // AÇÃO: Gerar áudio TTS para a aula
+    // accentInstruction (opcional): instrução de sotaque em linguagem natural
+    // Ex: "with a Spanish accent, as if the speaker is a native Spanish speaker"
+    // ---------------------------------------------------------
     if (action === "generateAudio") {
-      const { text, voiceName } = payload;
+      const { text, voiceName, accentInstruction } = payload;
+
+      // Se houver instrução de sotaque, montamos um systemInstruction
+      // para o modelo aplicar o sotaque desejado sobre a voz base
+      const systemInstruction = accentInstruction
+        ? `You are a text-to-speech narrator. Read the text naturally ${accentInstruction}. Maintain this accent consistently throughout the entire reading.`
+        : undefined;
+
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text }] }],
         config: {
           responseModalities: [Modality.AUDIO],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName } },
+          },
+          ...(systemInstruction && { systemInstruction }),
         },
       });
       const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      return { statusCode: 200, headers, body: JSON.stringify({ audioData: base64Audio || "" }) };
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ audioData: base64Audio || "" }),
+      };
     }
 
+    // ---------------------------------------------------------
+    // AÇÃO: Traduzir palavra (ClassroomView)
+    // ---------------------------------------------------------
     if (action === "translate") {
       const { word } = payload;
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: [{ parts: [{ text: `Translate the English word "${word}" to Portuguese. Provide ONLY the Portuguese word, nothing else.` }] }],
       });
-      return { statusCode: 200, headers, body: JSON.stringify({ text: response.text?.trim() || "" }) };
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ text: response.text?.trim() || "" }),
+      };
     }
 
-    return { statusCode: 400, headers, body: JSON.stringify({ error: `Ação desconhecida: ${action}` }) };
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: `Ação desconhecida: ${action}` }),
+    };
 
   } catch (error) {
     console.error("Erro na função Gemini LPG:", error);
