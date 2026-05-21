@@ -3,7 +3,7 @@
   publish = "dist"
   functions = "netlify/functions"
 
-[functions]
+[functions.gemini]
   timeout = 300
 
 [[redirects]]
