@@ -55,15 +55,12 @@ exports.handler = async (event) => {
 
     // ---------------------------------------------------------
     // AÇÃO: Gerar conteúdo (plano de aula, prova, playground)
-    // Modelo fixado no servidor para garantir estabilidade.
-    // gemini-3.5-flash é usado para geração de aulas (rápido e qualidade).
-    // gemini-2.5-pro é mantido apenas para provas (generateExam).
+    // gemini-3.5-flash para aulas (mais rápido e mais qualidade).
+    // gemini-2.5-pro mantido apenas para provas (generateExam).
     // ---------------------------------------------------------
     if (action === "generateContent") {
       const { contents, config } = payload;
 
-      // Se o cliente pediu gemini-2.5-pro (usado na geração de provas),
-      // respeitamos. Para tudo mais, usamos gemini-3.5-flash.
       const model = payload.model === "gemini-2.5-pro"
         ? "gemini-2.5-pro"
         : "gemini-3.5-flash";
@@ -78,17 +75,20 @@ exports.handler = async (event) => {
 
     // ---------------------------------------------------------
     // AÇÃO: Gerar imagem da aula
+    // Mantido gemini-2.5-flash-image que funcionava corretamente.
     // ---------------------------------------------------------
     if (action === "generateImage") {
       const { prompt } = payload;
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-05-20",
+        model: "gemini-2.5-flash-image",
         contents: {
           parts: [{
             text: `A high-quality, professional, cinematic illustration. Style: clean, inspiring, modern. Topic: ${prompt}. DO NOT show any text, letters, UI elements, or logos.`
           }]
         },
-        config: { responseModalities: ["IMAGE", "TEXT"] },
+        config: {
+          imageConfig: { aspectRatio: "3:4" },
+        },
       });
 
       let imageData = null;
