@@ -8,7 +8,7 @@
 const { GoogleGenAI, Modality } = require("@google/genai");
 
 const ALLOWED_ORIGINS = [
-  "https://freedomlpg.netlify.app",  // URL real do LPG
+  "https://freedomlpg.netlify.app",
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:8888",
@@ -54,10 +54,20 @@ exports.handler = async (event) => {
   try {
 
     // ---------------------------------------------------------
-    // AÇÃO: Gerar plano de aula (generateLessonPlan)
+    // AÇÃO: Gerar conteúdo (plano de aula, prova, playground)
+    // Modelo fixado no servidor para garantir estabilidade.
+    // gemini-3.5-flash é usado para geração de aulas (rápido e qualidade).
+    // gemini-2.5-pro é mantido apenas para provas (generateExam).
     // ---------------------------------------------------------
     if (action === "generateContent") {
-      const { model, contents, config } = payload;
+      const { contents, config } = payload;
+
+      // Se o cliente pediu gemini-2.5-pro (usado na geração de provas),
+      // respeitamos. Para tudo mais, usamos gemini-3.5-flash.
+      const model = payload.model === "gemini-2.5-pro"
+        ? "gemini-2.5-pro"
+        : "gemini-3.5-flash";
+
       const response = await ai.models.generateContent({ model, contents, config });
       return {
         statusCode: 200,
@@ -67,18 +77,18 @@ exports.handler = async (event) => {
     }
 
     // ---------------------------------------------------------
-    // AÇÃO: Gerar imagem da aula (generateLessonImage)
+    // AÇÃO: Gerar imagem da aula
     // ---------------------------------------------------------
     if (action === "generateImage") {
       const { prompt } = payload;
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
+        model: "gemini-2.5-flash-preview-05-20",
         contents: {
           parts: [{
             text: `A high-quality, professional, cinematic illustration. Style: clean, inspiring, modern. Topic: ${prompt}. DO NOT show any text, letters, UI elements, or logos.`
           }]
         },
-        config: { imageConfig: { aspectRatio: "3:4" } },
+        config: { responseModalities: ["IMAGE", "TEXT"] },
       });
 
       let imageData = null;
@@ -99,8 +109,6 @@ exports.handler = async (event) => {
 
     // ---------------------------------------------------------
     // AÇÃO: Gerar áudio TTS para a aula
-    // accentInstruction (opcional): instrução de sotaque em linguagem natural
-    // Ex: "with a Spanish accent, as if the speaker is a native Spanish speaker"
     // ---------------------------------------------------------
     if (action === "generateAudio") {
       const { text, voiceName, accentInstruction } = payload;
@@ -135,7 +143,7 @@ exports.handler = async (event) => {
     if (action === "translate") {
       const { word } = payload;
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         contents: [{ parts: [{ text: `Translate the English word "${word}" to Portuguese. Provide ONLY the Portuguese word, nothing else.` }] }],
       });
       return {
