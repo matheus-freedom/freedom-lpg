@@ -15,6 +15,15 @@ import { ref, uploadString, getDownloadURL } from "firebase/storage";
 const PLANS_COLLECTION = 'plans';
 const USERS_COLLECTION = 'users';
 
+// ── FUNÇÃO AUXILIAR: Remove campos undefined de um objeto ──
+// O Firebase rejeita qualquer campo com valor undefined.
+// Esta função percorre o objeto e remove todos esses campos antes de salvar.
+const removeUndefinedFields = (obj: Record<string, any>): Record<string, any> => {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, v]) => v !== undefined)
+  );
+};
+
 // --- FUNÇÃO AUXILIAR: UPLOAD DE IMAGEM ---
 const uploadImageAndGetUrl = async (base64Image: string, planId: string): Promise<string> => {
   try {
@@ -41,12 +50,14 @@ export const saveLessonPlanSafely = async (newPlan: LessonPlan): Promise<boolean
       finalImageUrl = await uploadImageAndGetUrl(newPlan.illustrationImage, newPlan.id);
     }
 
-    const planToSave = {
+    // Montamos o objeto base e removemos todos os campos undefined
+    // antes de enviar ao Firebase — isso evita o erro "Unsupported field value: undefined"
+    const planToSave = removeUndefinedFields({
       ...newPlan,
       userId: user.uid,
       illustrationImage: finalImageUrl,
       createdAt: Date.now()
-    };
+    });
 
     await setDoc(doc(db, PLANS_COLLECTION, newPlan.id), planToSave);
     return true;
@@ -59,10 +70,7 @@ export const saveLessonPlanSafely = async (newPlan: LessonPlan): Promise<boolean
 
 export const getSavedPlans = async (): Promise<LessonPlan[]> => {
   try {
-    // CORREÇÃO AQUI: Removemos o filtro 'where userId == ...'
-    // Agora buscamos TODOS os planos da coleção
     const q = collection(db, PLANS_COLLECTION);
-
     const querySnapshot = await getDocs(q);
     const plans: LessonPlan[] = [];
     
@@ -70,7 +78,6 @@ export const getSavedPlans = async (): Promise<LessonPlan[]> => {
       plans.push(doc.data() as LessonPlan);
     });
     
-    // Ordena do mais recente para o mais antigo
     return plans.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
   } catch (e) {
@@ -81,8 +88,6 @@ export const getSavedPlans = async (): Promise<LessonPlan[]> => {
 
 export const getPlanById = async (id: string): Promise<LessonPlan | null> => {
   try {
-    const docRef = doc(db, PLANS_COLLECTION, id);
-    // Tentamos buscar direto pelo ID do documento
     const snap = await getDocs(query(collection(db, PLANS_COLLECTION), where("id", "==", id)));
     
     if (!snap.empty) {
@@ -98,7 +103,9 @@ export const getPlanById = async (id: string): Promise<LessonPlan | null> => {
 export const updateLessonPlan = async (id: string, updates: Partial<LessonPlan>): Promise<boolean> => {
   try {
     const docRef = doc(db, PLANS_COLLECTION, id);
-    await updateDoc(docRef, updates);
+    // Remove campos undefined também nas atualizações parciais
+    const cleanUpdates = removeUndefinedFields(updates as Record<string, any>);
+    await updateDoc(docRef, cleanUpdates);
     return true;
   } catch (e) {
     console.error("Erro ao atualizar:", e);
