@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { LessonPlan, QuizQuestion } from '../types';
-import { generateLessonImage, generateAudioFromText, translateWord } from '../services/geminiService';
+import { generateLessonImage, generateAudioFromText, translateWordToPortuguese } from '../services/geminiService';
 import { getPlanById, updateLessonPlan } from '../services/storageService';
 
 // --- Funções Auxiliares de Áudio ---
@@ -104,7 +104,7 @@ const ClassroomView: React.FC = () => {
     }
   }, [playbackRate]);
 
-  // ── TRADUÇÃO: agora usa geminiService (chave protegida no servidor) ──
+  // ── TRADUÇÃO: usa geminiService (chave protegida no servidor) ──
   const handleTranslate = async (word: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const cleanWord = word.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g,"").trim();
@@ -114,7 +114,7 @@ const ClassroomView: React.FC = () => {
     setIsTranslating(true);
 
     try {
-      const result = await translateWord(cleanWord);
+      const result = await translateWordToPortuguese(cleanWord);
       setTranslation(prev => prev ? { ...prev, translated: result.trim() } : null);
     } catch {
       setTranslation(prev => prev ? { ...prev, translated: "Error" } : null);
@@ -140,7 +140,7 @@ const ClassroomView: React.FC = () => {
     }
   };
 
-  // ── ÁUDIO: agora usa geminiService com suporte a accentInstruction ──
+  // ── ÁUDIO: usa geminiService com suporte a accentInstruction ──
   const handleGenerateAudio = async (text: string) => {
     if (isAudioLoading || isAudioReady) return;
 
