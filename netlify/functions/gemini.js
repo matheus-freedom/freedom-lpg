@@ -1,8 +1,10 @@
 // ============================================================
 // FREEDOMLPG — Netlify Function: /netlify/functions/gemini
 // ------------------------------------------------------------
-// Protege a chave Gemini e as credenciais Firebase
-// do FreedomLPG (Lesson Plan Generator)
+// Apenas ações RÁPIDAS ficam aqui (translate, generateAudio).
+// Ações pesadas (generateContent, generateImage) são
+// despachadas para gemini-background via fetch interno,
+// e o resultado é lido pelo frontend via polling no Firebase.
 // ============================================================
 
 const { GoogleGenAI, Modality } = require("@google/genai");
@@ -24,6 +26,10 @@ const buildHeaders = (origin) => {
   };
 };
 
+// Gera um ID único para cada job
+const generateJobId = () =>
+  `job_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+
 exports.handler = async (event) => {
   const origin = event.headers.origin || "";
   const headers = buildHeaders(origin);
@@ -37,7 +43,6 @@ exports.handler = async (event) => {
   }
 
   if (!process.env.GEMINI_API_KEY) {
-    console.error("GEMINI_API_KEY não configurada!");
     return { statusCode: 500, headers, body: JSON.stringify({ error: "Configuração incompleta." }) };
   }
 
@@ -54,61 +59,36 @@ exports.handler = async (event) => {
   try {
 
     // ---------------------------------------------------------
-    // AÇÃO: Gerar conteúdo (plano de aula, prova, playground)
-    // gemini-3.5-flash para aulas (mais rápido e mais qualidade).
-    // gemini-2.5-pro mantido apenas para provas (generateExam).
+    // AÇÕES PESADAS → despachadas para background function
+    // Retorna jobId imediatamente. O frontend faz polling
+    // no Firebase para buscar o resultado quando ficar pronto.
     // ---------------------------------------------------------
-    if (action === "generateContent") {
-      const { contents, config } = payload;
+    if (action === "generateContent" || action === "generateImage") {
+      const jobId = generateJobId();
 
-      const model = payload.model === "gemini-2.5-pro"
-        ? "gemini-2.5-pro"
-        : "gemini-3.5-flash";
+      // Determina a URL base do Netlify (funciona em prod e dev local)
+      const siteUrl = process.env.URL || "http://localhost:8888";
 
-      const response = await ai.models.generateContent({ model, contents, config });
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ text: response.text }),
-      };
-    }
-
-    // ---------------------------------------------------------
-    // AÇÃO: Gerar imagem da aula
-    // Mantido gemini-2.5-flash-image que funcionava corretamente.
-    // ---------------------------------------------------------
-    if (action === "generateImage") {
-      const { prompt } = payload;
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
-        contents: {
-          parts: [{
-            text: `A high-quality, professional, cinematic illustration. Style: clean, inspiring, modern. Topic: ${prompt}. DO NOT show any text, letters, UI elements, or logos.`
-          }]
-        },
-        config: {
-          imageConfig: { aspectRatio: "3:4" },
-        },
+      // Dispara a background function sem esperar resposta
+      // (o fetch resolve com 202 Accepted imediatamente)
+      fetch(`${siteUrl}/.netlify/functions/gemini-background`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId, action, payload }),
+      }).catch((err) => {
+        console.error("Erro ao disparar background function:", err);
       });
 
-      let imageData = null;
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-            imageData = `data:image/png;base64,${part.inlineData.data}`;
-            break;
-          }
-        }
-      }
+      // Retorna o jobId para o frontend iniciar o polling
       return {
-        statusCode: 200,
+        statusCode: 202,
         headers,
-        body: JSON.stringify({ imageData }),
+        body: JSON.stringify({ jobId }),
       };
     }
 
     // ---------------------------------------------------------
-    // AÇÃO: Gerar áudio TTS para a aula
+    // AÇÃO RÁPIDA: Gerar áudio TTS
     // ---------------------------------------------------------
     if (action === "generateAudio") {
       const { text, voiceName, accentInstruction } = payload;
@@ -138,7 +118,7 @@ exports.handler = async (event) => {
     }
 
     // ---------------------------------------------------------
-    // AÇÃO: Traduzir palavra (ClassroomView)
+    // AÇÃO RÁPIDA: Traduzir palavra (ClassroomView)
     // ---------------------------------------------------------
     if (action === "translate") {
       const { word } = payload;
