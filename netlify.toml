@@ -3,8 +3,14 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Função leve (translate, audio) — limite padrão de 26s é suficiente
 [functions.gemini]
-  timeout = 300
+  timeout = 26
+
+# Background function — sem limite de tempo fixo (até 15 minutos)
+# Não precisa de timeout aqui pois background functions são assíncronas
+[functions.gemini-background]
+  timeout = 900
 
 [[redirects]]
   from = "/*"
