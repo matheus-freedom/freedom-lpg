@@ -14,13 +14,13 @@ type Difficulty = 'easy' | 'standard' | 'challenging' | 'mixed';
 
 // ─── Opções ───────────────────────────────────────────────────────────────
 const TEXT_TYPE_OPTIONS: { id: TextType; label: string; desc: string; icon: string }[] = [
-  { id: 'narrative',     label: 'Narrative',     desc: 'Story-based text',      icon: '📖' },
-  { id: 'descriptive',   label: 'Descriptive',   desc: 'Vivid descriptions',    icon: '🎨' },
-  { id: 'argumentative', label: 'Argumentative', desc: 'Opinion & debate text', icon: '⚖️' },
-  { id: 'expository',    label: 'Expository',    desc: 'Facts & explanation',   icon: '📚' },
-  { id: 'procedural',    label: 'Procedural',    desc: 'Step-by-step guide',    icon: '📋' },
-  { id: 'comparative',   label: 'Comparative',   desc: 'Compare & contrast',    icon: '🔄' },
-  { id: 'custom',        label: 'Custom',        desc: 'Describe your own type',icon: '✍️' },
+  { id: 'narrative',     label: 'Narrative',     desc: 'Story-based text',       icon: '📖' },
+  { id: 'descriptive',   label: 'Descriptive',   desc: 'Vivid descriptions',     icon: '🎨' },
+  { id: 'argumentative', label: 'Argumentative', desc: 'Opinion & debate text',  icon: '⚖️' },
+  { id: 'expository',    label: 'Expository',    desc: 'Facts & explanation',    icon: '📚' },
+  { id: 'procedural',    label: 'Procedural',    desc: 'Step-by-step guide',     icon: '📋' },
+  { id: 'comparative',   label: 'Comparative',   desc: 'Compare & contrast',     icon: '🔄' },
+  { id: 'custom',        label: 'Custom',        desc: 'Describe your own type', icon: '✍️' },
 ];
 
 const IMAGE_STYLE_OPTIONS: { id: ImageStyle; label: string; icon: string }[] = [
@@ -42,13 +42,13 @@ const QUIZ_FOCUS_OPTIONS: { id: QuizFocus; label: string; desc: string }[] = [
 ];
 
 const CONVERSATION_OPTIONS: { id: ConversationApproach; label: string; icon: string; desc: string }[] = [
-  { id: 'debate',          label: 'Debate',         icon: '🗣️', desc: 'Structured arguments' },
-  { id: 'roleplay',        label: 'Role-play',      icon: '🎭', desc: 'Simulate real situations' },
-  { id: 'opinion',         label: 'Opinion',        icon: '💬', desc: 'Express personal views' },
-  { id: 'problem-solving', label: 'Problem Solving',icon: '🧩', desc: 'Find solutions together' },
-  { id: 'storytelling',    label: 'Storytelling',   icon: '📝', desc: 'Create narratives' },
-  { id: 'interview',       label: 'Interview',      icon: '🎙️', desc: 'Q&A format' },
-  { id: 'custom',          label: 'Custom',         icon: '✍️', desc: 'Describe your own style' },
+  { id: 'debate',          label: 'Debate',          icon: '🗣️', desc: 'Structured arguments' },
+  { id: 'roleplay',        label: 'Role-play',       icon: '🎭', desc: 'Simulate real situations' },
+  { id: 'opinion',         label: 'Opinion',         icon: '💬', desc: 'Express personal views' },
+  { id: 'problem-solving', label: 'Problem Solving', icon: '🧩', desc: 'Find solutions together' },
+  { id: 'storytelling',    label: 'Storytelling',    icon: '📝', desc: 'Create narratives' },
+  { id: 'interview',       label: 'Interview',       icon: '🎙️', desc: 'Q&A format' },
+  { id: 'custom',          label: 'Custom',          icon: '✍️', desc: 'Describe your own style' },
 ];
 
 // ─── Componente Section colapsável ────────────────────────────────────────
@@ -77,148 +77,145 @@ const Section: React.FC<{
 // ─── Componente Principal ─────────────────────────────────────────────────
 const QuickLessonGenerator: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading]           = useState(false);
+  const [loading, setLoading]             = useState(false);
   const [loadingStatus, setLoadingStatus] = useState('Fred is starting...');
-  const [currentUser, setCurrentUser]   = useState<User | null>(null);
+  const [currentUser, setCurrentUser]     = useState<User | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('freedom_user');
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
   }, []);
 
-  // ── Form base — nível e alunos SEM pré-seleção
-  const [level, setLevel]               = useState<CEFRLevel | null>(null);
-  const [studentCount, setStudentCount] = useState<StudentCount | null>(null);
-  const [grammarTopic, setGrammarTopic] = useState('');
-  const [vocabularyFocus, setVocabularyFocus] = useState('');
+  // ── Form base — sem pré-seleção ───────────────────────────────
+  const [level, setLevel]                           = useState<CEFRLevel | null>(null);
+  const [studentCount, setStudentCount]             = useState<StudentCount | null>(null);
+  const [grammarTopic, setGrammarTopic]             = useState('');
+  const [vocabularyFocus, setVocabularyFocus]       = useState('');
 
-  // ── Texto
-  const [textType, setTextType]         = useState<TextType | null>(null);
-  const [customTextType, setCustomTextType] = useState('');
-  const [paragraphCount, setParagraphCount] = useState<number | null>(null);
+  // ── Texto ─────────────────────────────────────────────────────
+  const [textType, setTextType]                     = useState<TextType | null>(null);
+  const [customTextType, setCustomTextType]         = useState('');
+  const [paragraphCount, setParagraphCount]         = useState<number | null>(null);
 
-  // ── Imagem
-  const [imageStyle, setImageStyle]     = useState<ImageStyle | null>(null);
-  const [customImageStyle, setCustomImageStyle] = useState('');
+  // ── Imagem ────────────────────────────────────────────────────
+  const [imageStyle, setImageStyle]                 = useState<ImageStyle | null>(null);
+  const [customImageStyle, setCustomImageStyle]     = useState('');
 
-  // ── Quiz
-  const [quizQuestionCount, setQuizQuestionCount] = useState<number>(5);
-  const [quizFocuses, setQuizFocuses]   = useState<QuizFocus[]>([]);
+  // ── Quiz ──────────────────────────────────────────────────────
+  const [quizQuestionCount, setQuizQuestionCount]   = useState<number>(5);
+  const [quizFocuses, setQuizFocuses]               = useState<QuizFocus[]>([]);
 
-  // ── Conversação
+  // ── Conversação ───────────────────────────────────────────────
   const [conversationApproaches, setConversationApproaches] = useState<ConversationApproach[]>([]);
-  const [customConversation, setCustomConversation] = useState('');
-  const [extraInfo, setExtraInfo] = useState('');
+  const [customConversation, setCustomConversation]         = useState('');
+  const [extraInfo, setExtraInfo]                           = useState('');
 
-  // ── Dificuldade
-  const [difficulty, setDifficulty]     = useState<Difficulty | null>(null);
+  // ── Dificuldade ───────────────────────────────────────────────
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
 
-  // ── Áudio
+  // ── Áudio ─────────────────────────────────────────────────────
   type AudioAccent = 'american' | 'british' | 'spanish' | 'italian' | 'french' | 'german' | 'indian' | 'chinese';
 
   const ACCENT_OPTIONS: { id: AudioAccent; flag: string; label: string; instruction: string }[] = [
-    { id: 'american', flag: '🇺🇸', label: 'American',  instruction: '' },
-    { id: 'british',  flag: '🇬🇧', label: 'British',   instruction: 'with a British RP accent' },
-    { id: 'spanish',  flag: '🇪🇸', label: 'Spanish',   instruction: 'with a Spanish accent, as if the speaker is a native Spanish speaker' },
-    { id: 'italian',  flag: '🇮🇹', label: 'Italian',   instruction: 'with an Italian accent, as if the speaker is a native Italian speaker' },
-    { id: 'french',   flag: '🇫🇷', label: 'French',    instruction: 'with a French accent, as if the speaker is a native French speaker' },
-    { id: 'german',   flag: '🇩🇪', label: 'German',    instruction: 'with a German accent, as if the speaker is a native German speaker' },
-    { id: 'indian',   flag: '🇮🇳', label: 'Indian',    instruction: 'with an Indian English accent' },
-    { id: 'chinese',  flag: '🇨🇳', label: 'Chinese',   instruction: 'with a Chinese accent, as if the speaker is a native Mandarin speaker' },
+    { id: 'american', flag: '🇺🇸', label: 'American', instruction: '' },
+    { id: 'british',  flag: '🇬🇧', label: 'British',  instruction: 'with a British RP accent' },
+    { id: 'spanish',  flag: '🇪🇸', label: 'Spanish',  instruction: 'with a Spanish accent, as if the speaker is a native Spanish speaker' },
+    { id: 'italian',  flag: '🇮🇹', label: 'Italian',  instruction: 'with an Italian accent, as if the speaker is a native Italian speaker' },
+    { id: 'french',   flag: '🇫🇷', label: 'French',   instruction: 'with a French accent, as if the speaker is a native French speaker' },
+    { id: 'german',   flag: '🇩🇪', label: 'German',   instruction: 'with a German accent, as if the speaker is a native German speaker' },
+    { id: 'indian',   flag: '🇮🇳', label: 'Indian',   instruction: 'with an Indian English accent' },
+    { id: 'chinese',  flag: '🇨🇳', label: 'Chinese',  instruction: 'with a Chinese accent, as if the speaker is a native Mandarin speaker' },
   ];
 
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [audioGender, setAudioGender]   = useState<'female' | 'male'>('female');
   const [audioAccent, setAudioAccent]   = useState<AudioAccent>('american');
 
-  // Para american/british usamos vozes nativas; para os demais passamos instrução de sotaque
   const getVoiceName = (gender: 'male' | 'female', accent: AudioAccent): string => {
     if (gender === 'female' && accent === 'american') return 'Zephyr';
     if (gender === 'female' && accent === 'british')  return 'Aoede';
     if (gender === 'male'   && accent === 'american') return 'Puck';
     if (gender === 'male'   && accent === 'british')  return 'Fenrir';
-    // Para sotaques não-nativos: usa voz base americana e passa instrução via systemInstruction
     return gender === 'female' ? 'Zephyr' : 'Puck';
   };
 
-  // Retorna a instrução de sotaque para incluir no systemInstruction da chamada TTS
-  const getAccentInstruction = (accent: AudioAccent): string => {
-    return ACCENT_OPTIONS.find(a => a.id === accent)?.instruction || '';
-  };
+  const getAccentInstruction = (accent: AudioAccent): string =>
+    ACCENT_OPTIONS.find(a => a.id === accent)?.instruction || '';
 
-  // ── Toggle multi-select quiz focus
   const toggleQuizFocus = (id: QuizFocus) => {
     setQuizFocuses(prev =>
       prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
     );
   };
 
-  // ── Toggle multi-select conversation
   const toggleConversation = (id: ConversationApproach) => {
     setConversationApproaches(prev =>
       prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
     );
   };
 
-  // ── Monta prompt enriquecido
+  // ── Monta prompt enriquecido com todas as customizações ───────
   const buildEnrichedPrompt = (): string => {
     const parts: string[] = [];
 
-    // Tipo de texto
     const resolvedTextType = textType === 'custom' ? customTextType : textType;
     if (resolvedTextType) parts.push(`TEXT TYPE: Write a ${resolvedTextType} text.`);
 
-    // Parágrafos (sem lógica automática por nível)
     if (paragraphCount) parts.push(`PARAGRAPHS: The reading text must have exactly ${paragraphCount} paragraph(s).`);
 
-    // Estilo de imagem
     const resolvedImageStyle = imageStyle === 'custom' ? customImageStyle : imageStyle;
     if (resolvedImageStyle) parts.push(`IMAGE STYLE: The visualPrompt should describe a ${resolvedImageStyle} style image.`);
 
-    // Quiz
     parts.push(`QUIZ: Generate exactly ${quizQuestionCount} quiz questions.`);
     if (quizFocuses.length > 0) parts.push(`QUIZ FOCUS: Distribute questions across these areas: ${quizFocuses.join(', ')}.`);
 
-    // Conversação
-    const resolvedConversations = conversationApproaches.map(a => a === 'custom' ? customConversation : a).filter(Boolean);
+    const resolvedConversations = conversationApproaches
+      .map(a => a === 'custom' ? customConversation : a)
+      .filter(Boolean);
     if (resolvedConversations.length > 0) {
       parts.push(`CONVERSATION APPROACH: The 10 conversation questions should blend these approaches: ${resolvedConversations.join(', ')}.`);
     }
 
-    // Dificuldade
     if (difficulty) parts.push(`DIFFICULTY: The lesson difficulty should be ${difficulty} for a ${level} student.`);
+
+    if (extraInfo.trim()) parts.push(`EXTRA CONTEXT: ${extraInfo.trim()}`);
 
     return parts.join('\n');
   };
 
-  // ── Validação
   const canGenerate = !!level && !!studentCount && !!grammarTopic.trim() && !!vocabularyFocus.trim();
 
+  // ── GERAÇÃO com onProgress para feedback em tempo real ───────
   const handleGenerate = async () => {
     if (!canGenerate) return;
 
     setLoading(true);
     try {
-      setLoadingStatus('Analyzing goals and crafting your custom lesson...');
-
-      const voiceName = getVoiceName(audioGender, audioAccent);
+      const voiceName         = getVoiceName(audioGender, audioAccent);
       const accentInstruction = getAccentInstruction(audioAccent);
       const audioConfig: AudioConfig | undefined = audioEnabled
         ? { enabled: true, gender: audioGender, accent: audioAccent, voiceName, accentInstruction }
         : undefined;
 
-      const plan = await generateQuickLessonPlan({
-        level: level!,
-        studentCount: studentCount!,
-        grammarTopic,
-        vocabularyFocus,
-        extraInfo: buildEnrichedPrompt(),
-      });
+      // Gera o plano com callback de progresso em tempo real
+      const plan = await generateQuickLessonPlan(
+        {
+          level: level!,
+          studentCount: studentCount!,
+          grammarTopic,
+          vocabularyFocus,
+          extraInfo: buildEnrichedPrompt(),
+        },
+        (msg) => setLoadingStatus(msg)   // ← onProgress: atualiza status na tela
+      );
 
+      // Gera a imagem com callback de progresso
       const resolvedImageStyle = imageStyle === 'custom' ? customImageStyle : imageStyle;
-      setLoadingStatus(`Creating ${resolvedImageStyle || 'lesson'} illustration...`);
       const imagePrompt = plan.visualPrompt || `${vocabularyFocus} ${resolvedImageStyle || 'realistic'} style`;
-      const image = await generateLessonImage(imagePrompt);
+      const image = await generateLessonImage(
+        imagePrompt,
+        (msg) => setLoadingStatus(msg)  // ← onProgress
+      );
 
       const finalPlan = {
         ...plan,
@@ -232,14 +229,16 @@ const QuickLessonGenerator: React.FC = () => {
       if (success) navigate(`/lesson/${finalPlan.id}`);
     } catch (error) {
       console.error(error);
-      alert("Fred needs to try that again! Please check your connection.");
+      const msg = error instanceof Error ? error.message : "Erro desconhecido";
+      alert(`Fred encontrou um problema: ${msg}\n\nTente novamente.`);
     } finally {
       setLoading(false);
+      setLoadingStatus('Fred is starting...');
     }
   };
 
-  const levels: CEFRLevel[]     = ['A1', 'A2', 'B1', 'B2', 'C1'];
-  const counts: StudentCount[]  = [1, 2, 3, 4, 5];
+  const levels: CEFRLevel[]    = ['A1', 'A2', 'B1', 'B2', 'C1'];
+  const counts: StudentCount[] = [1, 2, 3, 4, 5];
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -261,8 +260,6 @@ const QuickLessonGenerator: React.FC = () => {
 
           {/* ── SEÇÃO 1: CLASS SETUP ──────────────────────────────────── */}
           <Section title="Class Setup" icon="🎯" defaultOpen={true}>
-
-            {/* Nível — sem pré-seleção */}
             <div>
               <label className="block text-freedom-gray font-black mb-2 uppercase text-[10px] tracking-widest">
                 CEFR Level {!level && <span className="text-red-400 ml-1">← Choose one</span>}
@@ -280,7 +277,6 @@ const QuickLessonGenerator: React.FC = () => {
               </div>
             </div>
 
-            {/* Alunos — sem pré-seleção */}
             <div>
               <label className="block text-freedom-gray font-black mb-2 uppercase text-[10px] tracking-widest">
                 Students {!studentCount && <span className="text-red-400 ml-1">← Choose one</span>}
@@ -298,7 +294,6 @@ const QuickLessonGenerator: React.FC = () => {
               </div>
             </div>
 
-            {/* Grammar */}
             <div>
               <label className="block text-freedom-gray font-black mb-2 uppercase text-[10px] tracking-widest">
                 Grammar Topic <span className="text-red-400">*</span>
@@ -311,7 +306,6 @@ const QuickLessonGenerator: React.FC = () => {
               />
             </div>
 
-            {/* Vocabulary */}
             <div>
               <label className="block text-freedom-gray font-black mb-2 uppercase text-[10px] tracking-widest">
                 Vocabulary Focus <span className="text-red-400">*</span>
@@ -327,8 +321,6 @@ const QuickLessonGenerator: React.FC = () => {
 
           {/* ── SEÇÃO 2: READING TEXT ─────────────────────────────────── */}
           <Section title="Reading Text" icon="📖" badge="NEW">
-
-            {/* Tipo de texto — 7 opções incluindo custom */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Text Type</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -346,7 +338,6 @@ const QuickLessonGenerator: React.FC = () => {
                   </button>
                 ))}
               </div>
-              {/* Campo custom de texto */}
               {textType === 'custom' && (
                 <textarea
                   placeholder="Describe exactly how you want the text to be written. Ex: A formal academic text with technical vocabulary about space exploration, written in third person..."
@@ -357,12 +348,13 @@ const QuickLessonGenerator: React.FC = () => {
               )}
             </div>
 
-            {/* Parágrafos — sem lógica automática, 1 a 4 */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
                 Number of Paragraphs
-                {paragraphCount && <span className="ml-2 text-freedom-orange font-black">{paragraphCount}</span>}
-                {!paragraphCount && <span className="ml-2 text-gray-400">(not specified)</span>}
+                {paragraphCount
+                  ? <span className="ml-2 text-freedom-orange font-black">{paragraphCount}</span>
+                  : <span className="ml-2 text-gray-400">(not specified)</span>
+                }
               </label>
               <div className="flex gap-2 flex-wrap">
                 {[null, 1, 2, 3, 4].map(n => (
@@ -380,7 +372,6 @@ const QuickLessonGenerator: React.FC = () => {
               </div>
             </div>
 
-            {/* Dificuldade — 4 opções incluindo mixed */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Difficulty Level</label>
               <div className="grid grid-cols-2 gap-2">
@@ -420,7 +411,6 @@ const QuickLessonGenerator: React.FC = () => {
                   </button>
                 ))}
               </div>
-              {/* Campo custom de imagem */}
               {imageStyle === 'custom' && (
                 <textarea
                   placeholder="Describe the image style you want. Ex: A dark dramatic oil painting style with warm lighting, like a Dutch golden age masterpiece..."
@@ -434,8 +424,6 @@ const QuickLessonGenerator: React.FC = () => {
 
           {/* ── SEÇÃO 4: QUIZ ─────────────────────────────────────────── */}
           <Section title="Quiz Settings" icon="🧠" badge="NEW">
-
-            {/* Número de questões */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
                 Number of Questions: <span className="text-freedom-orange">{quizQuestionCount}</span>
@@ -449,7 +437,6 @@ const QuickLessonGenerator: React.FC = () => {
               </div>
             </div>
 
-            {/* Quiz focus — multi-select */}
             <div>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
                 Quiz Focus <span className="text-gray-300 font-normal">(select one or more)</span>
@@ -511,7 +498,6 @@ const QuickLessonGenerator: React.FC = () => {
                 );
               })}
             </div>
-            {/* Campo custom de conversação */}
             {conversationApproaches.includes('custom') && (
               <textarea
                 placeholder="Describe your custom conversation approach. Ex: Each question should be a hypothetical scenario where the student must decide what they would do, justifying their choice using the grammar topic..."
@@ -538,7 +524,6 @@ const QuickLessonGenerator: React.FC = () => {
             {audioEnabled && (
               <div className="space-y-3 animate-fadeIn">
                 <div className="grid grid-cols-2 gap-3">
-                  {/* Gênero */}
                   <div>
                     <label className="block text-[9px] font-black uppercase text-gray-400 mb-2">Voice Gender</label>
                     <div className="flex bg-gray-100 p-1 rounded-xl">
@@ -552,7 +537,6 @@ const QuickLessonGenerator: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                {/* Sotaque — grid com 8 opções */}
                 <div>
                   <label className="block text-[9px] font-black uppercase text-gray-400 mb-2">English Accent</label>
                   <div className="grid grid-cols-4 gap-1.5">
@@ -572,7 +556,6 @@ const QuickLessonGenerator: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                {/* Preview da voz selecionada */}
                 <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                   <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Selected Voice</p>
                   <p className="text-sm font-black text-freedom-orange">
@@ -606,14 +589,14 @@ const QuickLessonGenerator: React.FC = () => {
             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Your Lesson Summary</p>
             <div className="grid grid-cols-2 gap-2 text-[10px]">
               {[
-                { label: 'Level',    value: level || '—', warn: !level },
-                { label: 'Students', value: studentCount ? `${studentCount} student${studentCount > 1 ? 's' : ''}` : '—', warn: !studentCount },
-                { label: 'Text',     value: textType === 'custom' ? 'Custom' : textType || '—' },
-                { label: 'Paragraphs', value: paragraphCount ? String(paragraphCount) : 'Any' },
-                { label: 'Image',    value: imageStyle === 'custom' ? 'Custom' : imageStyle || '—' },
-                { label: 'Quiz',     value: `${quizQuestionCount}q · ${quizFocuses.length > 0 ? quizFocuses.join('+') : 'AI decides'}` },
+                { label: 'Level',        value: level || '—',                                                                   warn: !level },
+                { label: 'Students',     value: studentCount ? `${studentCount} Student${studentCount > 1 ? 's' : ''}` : '—',  warn: !studentCount },
+                { label: 'Text',         value: textType === 'custom' ? 'Custom' : textType || '—' },
+                { label: 'Paragraphs',   value: paragraphCount ? String(paragraphCount) : 'Any' },
+                { label: 'Image',        value: imageStyle === 'custom' ? 'Custom' : imageStyle || '—' },
+                { label: 'Quiz',         value: `${quizQuestionCount}q · ${quizFocuses.length > 0 ? quizFocuses.join('+') : 'AI decides'}` },
                 { label: 'Conversation', value: conversationApproaches.length > 0 ? conversationApproaches.join('+') : 'AI decides' },
-                { label: 'Difficulty', value: difficulty || '—' },
+                { label: 'Difficulty',   value: difficulty || '—' },
               ].map(item => (
                 <div key={item.label}
                   className={`flex justify-between items-center rounded-lg px-3 py-2 border ${
@@ -637,15 +620,19 @@ const QuickLessonGenerator: React.FC = () => {
             <span>⚡ GENERATE QUICK LESSON</span>
             {!canGenerate && <span className="text-[10px] font-bold opacity-70">Complete required fields</span>}
           </button>
+
         </div>
       </div>
 
-      {/* ── LOADING ───────────────────────────────────────────────────── */}
+      {/* ── LOADING com status em tempo real e aviso de paciência ── */}
       {loading && (
         <div className="fixed inset-0 bg-freedom-orange flex flex-col items-center justify-center text-white p-6 text-center z-50">
           <div className="w-24 h-24 border-8 border-white border-t-transparent rounded-full animate-spin mb-8"></div>
           <h2 className="text-3xl font-black mb-4 uppercase tracking-tighter">Quick Power Up!</h2>
-          <p className="text-xl font-bold opacity-90">{loadingStatus}</p>
+          <p className="text-xl font-bold opacity-90 mb-3">{loadingStatus}</p>
+          <p className="text-sm text-white/70 max-w-sm leading-relaxed">
+            Aulas com muitas customizações podem levar até 2 minutos. Fred está trabalhando para garantir a melhor qualidade!
+          </p>
         </div>
       )}
     </div>
