@@ -108,7 +108,7 @@ const lessonPlanSchema = {
   type: Type.OBJECT,
   properties: {
     title: { type: Type.STRING },
-    visualPrompt: { type: Type.STRING, description: "A highly descriptive prompt for an image generator that visually represents the core scene or topic of the reading text. Describe colors, objects, and atmosphere. Can include people if relevant." },
+    visualPrompt: { type: Type.STRING, description: "A highly descriptive prompt for a photorealistic image generator. Describe the scene as if directing a professional photographer: lighting, composition, colors, mood, environment, and subjects. The default style is photorealistic — use real-world details, not illustration or cartoon language. Only deviate from photorealism if the IMAGE STYLE instruction in the prompt explicitly requests a different style (cartoon, watercolor, etc.)." },
     sections: {
       type: Type.ARRAY,
       items: {
