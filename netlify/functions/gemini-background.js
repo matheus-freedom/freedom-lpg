@@ -118,11 +118,13 @@ exports.handler = async (event) => {
     if (action === "generateImage") {
       const { prompt } = payload;
 
+      // O prompt já chega com o estilo escolhido pelo usuário (realistic, cinematic, etc.)
+      // e com o visualPrompt gerado pela IA de texto — não substituímos por prompt genérico.
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-image",
         contents: {
           parts: [{
-            text: `A high-quality, professional, cinematic illustration. Style: clean, inspiring, modern. Topic: ${prompt}. DO NOT show any text, letters, UI elements, or logos.`
+            text: `${prompt}. CRITICAL RULES: DO NOT include any text, letters, words, labels, UI elements, watermarks or logos in the image. The image must look like a real professional photograph taken by a human photographer, not like AI-generated art or digital illustration, unless explicitly specified otherwise in the style description.`
           }]
         },
         config: {
