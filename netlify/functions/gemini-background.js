@@ -28,10 +28,8 @@ const initFirebase = () => {
       credential: cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // A chave privada vem como string com \n literais — precisamos converter
         privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       }),
-      // Bucket padrão do Firebase Storage do projeto
       storageBucket: `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`,
     });
   }
@@ -51,26 +49,24 @@ const saveJobResult = async (db, jobId, data) => {
 };
 
 // ── Faz upload de imagem base64 para o Storage ────────────────
-// Retorna a URL pública de download.
+// Salva o arquivo como público e retorna a URL direta.
+// URL pública não requer permissão de assinatura — mais simples e confiável.
 const uploadImageToStorage = async (bucket, base64DataUrl, jobId) => {
-  // Remove o prefixo "data:image/png;base64," para pegar só os bytes
   const base64Data = base64DataUrl.replace(/^data:image\/\w+;base64,/, "");
   const buffer = Buffer.from(base64Data, "base64");
 
   const filePath = `plans/temp_${jobId}/cover_image.png`;
   const file = bucket.file(filePath);
 
+  // public: true torna o arquivo acessível sem autenticação
   await file.save(buffer, {
     metadata: { contentType: "image/png" },
+    public: true,
   });
 
-  // Gera URL de download com validade de 10 anos (link permanente para uso prático)
-  const [url] = await file.getSignedUrl({
-    action: "read",
-    expires: "01-01-2035",
-  });
-
-  return url;
+  // URL pública direta — não precisa de Signed URL nem de permissão especial
+  const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+  return publicUrl;
 };
 
 exports.handler = async (event) => {
@@ -113,13 +109,9 @@ exports.handler = async (event) => {
     }
 
     // ── AÇÃO: Gerar imagem ─────────────────────────────────────
-    // A imagem base64 é grande demais para o Firestore (limite 1MB).
-    // Solução: salvar no Firebase Storage e gravar só a URL no Firestore.
     if (action === "generateImage") {
       const { prompt } = payload;
 
-      // O prompt já chega com o estilo escolhido pelo usuário (realistic, cinematic, etc.)
-      // e com o visualPrompt gerado pela IA de texto — não substituímos por prompt genérico.
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-image",
         contents: {
@@ -138,7 +130,6 @@ exports.handler = async (event) => {
         for (const part of response.candidates[0].content.parts) {
           if (part.inlineData) {
             const base64DataUrl = `data:image/png;base64,${part.inlineData.data}`;
-            // Faz upload para o Storage e pega a URL — cabe tranquilamente no Firestore
             imageUrl = await uploadImageToStorage(bucket, base64DataUrl, jobId);
             break;
           }
@@ -147,7 +138,7 @@ exports.handler = async (event) => {
 
       await saveJobResult(db, jobId, {
         status: "done",
-        imageData: imageUrl, // Agora é uma URL pequena, não o base64 enorme
+        imageData: imageUrl,
       });
       return;
     }
