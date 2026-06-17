@@ -8,27 +8,38 @@
 // Fluxo:
 //  1. Frontend chama esta função com { jobId, action, payload }
 //  2. Esta função roda em background e salva o resultado no Firebase
-//  3. Frontend fica em polling no Firebase até o resultado aparecer
+//  3. Frontend fica em polling no Firestore até o resultado aparecer
+//
+// IMPORTANTE — Imagens:
+//  Imagens em base64 podem passar de 1MB, estourando o limite
+//  do Firestore por documento. Por isso, a imagem é salva no
+//  Firebase Storage e apenas a URL (pequena) vai para o Firestore.
 // ============================================================
 
 const { GoogleGenAI } = require("@google/genai");
 const { initializeApp, getApps, cert } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 
 // ── Inicializa o Firebase Admin (uma só vez) ──────────────────
 const initFirebase = () => {
-  if (getApps().length > 0) return getFirestore();
+  if (getApps().length === 0) {
+    initializeApp({
+      credential: cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        // A chave privada vem como string com \n literais — precisamos converter
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      }),
+      // Bucket padrão do Firebase Storage do projeto
+      storageBucket: `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`,
+    });
+  }
 
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      // A chave privada vem como string com \n literais — precisamos converter
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
-  });
-
-  return getFirestore();
+  return {
+    db: getFirestore(),
+    bucket: getStorage().bucket(),
+  };
 };
 
 // ── Salva o resultado do job no Firestore ─────────────────────
@@ -39,10 +50,30 @@ const saveJobResult = async (db, jobId, data) => {
   });
 };
 
-exports.handler = async (event) => {
-  // Background functions não precisam de CORS nem de resposta
-  // imediata — o Netlify já enviou 202 Accepted para o frontend.
+// ── Faz upload de imagem base64 para o Storage ────────────────
+// Retorna a URL pública de download.
+const uploadImageToStorage = async (bucket, base64DataUrl, jobId) => {
+  // Remove o prefixo "data:image/png;base64," para pegar só os bytes
+  const base64Data = base64DataUrl.replace(/^data:image\/\w+;base64,/, "");
+  const buffer = Buffer.from(base64Data, "base64");
 
+  const filePath = `plans/temp_${jobId}/cover_image.png`;
+  const file = bucket.file(filePath);
+
+  await file.save(buffer, {
+    metadata: { contentType: "image/png" },
+  });
+
+  // Gera URL de download com validade de 10 anos (link permanente para uso prático)
+  const [url] = await file.getSignedUrl({
+    action: "read",
+    expires: "01-01-2035",
+  });
+
+  return url;
+};
+
+exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return;
 
   let body;
@@ -60,7 +91,7 @@ exports.handler = async (event) => {
     return;
   }
 
-  const db = initFirebase();
+  const { db, bucket } = initFirebase();
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   try {
@@ -82,6 +113,8 @@ exports.handler = async (event) => {
     }
 
     // ── AÇÃO: Gerar imagem ─────────────────────────────────────
+    // A imagem base64 é grande demais para o Firestore (limite 1MB).
+    // Solução: salvar no Firebase Storage e gravar só a URL no Firestore.
     if (action === "generateImage") {
       const { prompt } = payload;
 
@@ -97,11 +130,14 @@ exports.handler = async (event) => {
         },
       });
 
-      let imageData = null;
+      let imageUrl = null;
+
       if (response.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
           if (part.inlineData) {
-            imageData = `data:image/png;base64,${part.inlineData.data}`;
+            const base64DataUrl = `data:image/png;base64,${part.inlineData.data}`;
+            // Faz upload para o Storage e pega a URL — cabe tranquilamente no Firestore
+            imageUrl = await uploadImageToStorage(bucket, base64DataUrl, jobId);
             break;
           }
         }
@@ -109,7 +145,7 @@ exports.handler = async (event) => {
 
       await saveJobResult(db, jobId, {
         status: "done",
-        imageData,
+        imageData: imageUrl, // Agora é uma URL pequena, não o base64 enorme
       });
       return;
     }
