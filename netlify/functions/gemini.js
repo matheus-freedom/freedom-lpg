@@ -66,18 +66,43 @@ exports.handler = async (event) => {
     if (action === "generateContent" || action === "generateImage") {
       const jobId = generateJobId();
 
-      // Determina a URL base do Netlify (funciona em prod e dev local)
-      const siteUrl = process.env.URL || "http://localhost:8888";
+      // Determina a URL base do site.
+      // Em produção o Netlify preenche process.env.URL automaticamente.
+      // DEPLOY_URL é um fallback que o Netlify também fornece.
+      // Por último, localhost para desenvolvimento.
+      const siteUrl =
+        process.env.URL ||
+        process.env.DEPLOY_URL ||
+        "http://localhost:8888";
 
-      // Dispara a background function sem esperar resposta
-      // (o fetch resolve com 202 Accepted imediatamente)
-      fetch(`${siteUrl}/.netlify/functions/gemini-background`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId, action, payload }),
-      }).catch((err) => {
-        console.error("Erro ao disparar background function:", err);
-      });
+      const backgroundUrl = `${siteUrl}/.netlify/functions/gemini-background`;
+      console.log("[gemini] Disparando background em:", backgroundUrl, "jobId:", jobId);
+
+      // CRÍTICO: precisamos AGUARDAR (await) o fetch completar antes de
+      // retornar. Em funções serverless, o ambiente é congelado assim que
+      // a função retorna — um fetch não-aguardado seria interrompido antes
+      // de enviar o pedido, e a background nunca seria invocada.
+      //
+      // A background responde 202 quase instantaneamente (ela apenas
+      // confirma o recebimento e segue processando por conta própria),
+      // então este await custa ~1 segundo, não o tempo do trabalho pesado.
+      try {
+        const dispatchResponse = await fetch(backgroundUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId, action, payload }),
+        });
+        console.log("[gemini] Background respondeu status:", dispatchResponse.status);
+      } catch (err) {
+        // Se o disparo falhar, avisamos o frontend em vez de devolver um
+        // jobId que nunca produziria resultado (evita o polling eterno).
+        console.error("[gemini] Erro ao disparar background function:", err);
+        return {
+          statusCode: 502,
+          headers,
+          body: JSON.stringify({ error: "Não foi possível iniciar a geração. Tente novamente." }),
+        };
+      }
 
       // Retorna o jobId para o frontend iniciar o polling
       return {
