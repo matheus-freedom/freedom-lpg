@@ -7,7 +7,7 @@
 // e o resultado é lido pelo frontend via polling no Firebase.
 // ============================================================
 
-const { GoogleGenAI, Modality } = require("@google/genai");
+const { GoogleGenAI, Modality, Type } = require("@google/genai");
 
 const ALLOWED_ORIGINS = [
   "https://freedomlpg.netlify.app",
@@ -155,6 +155,58 @@ exports.handler = async (event) => {
         statusCode: 200,
         headers,
         body: JSON.stringify({ text: response.text?.trim() || "" }),
+      };
+    }
+
+    // ---------------------------------------------------------
+    // ACAO RAPIDA: Traduzir lista de vocabulario (Student Worksheet)
+    // Recebe ate 20 palavras e devolve, para cada uma, os significados
+    // mais comuns em Portugues Brasileiro (mais de um quando houver).
+    // Uma unica chamada para a lista inteira - mais rapido e mais
+    // barato do que traduzir palavra por palavra.
+    // ---------------------------------------------------------
+    if (action === "translateVocab") {
+      const { words } = payload;
+
+      if (!Array.isArray(words) || words.length === 0 || words.length > 20) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: "Lista de palavras invalida." }) };
+      }
+
+      const vocabSchema = {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            word: { type: Type.STRING, description: "The English word, exactly as received." },
+            translations: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "1 to 3 common Brazilian Portuguese meanings, most frequent first.",
+            },
+          },
+          required: ["word", "translations"],
+        },
+      };
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [{
+          parts: [{
+            text: `Translate each of these English words to Brazilian Portuguese for an English student's vocabulary list.
+For each word, give its most common meanings - include 2 or 3 meanings when the word genuinely has more than one frequent sense (e.g. "play" = jogar, brincar, tocar). Give only 1 when the word has a single dominant meaning. Keep translations short (single words or very short expressions), no explanations.
+Words: ${words.join(", ")}`
+          }],
+        }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: vocabSchema,
+        },
+      });
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ vocab: JSON.parse(response.text || "[]") }),
       };
     }
 
