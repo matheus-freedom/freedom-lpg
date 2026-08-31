@@ -384,6 +384,21 @@ export const generateAudioFromText = async (
   }
 };
 
+// Traduz a lista de vocabulario do Student Worksheet - SINCRONO.
+// Uma unica chamada traduz todas as palavras de uma vez, e cada
+// palavra pode voltar com mais de um significado em portugues.
+export const translateVocabList = async (
+  words: string[]
+): Promise<{ word: string; translations: string[] }[]> => {
+  try {
+    const result = await callGeminiDirect("translateVocab", { words });
+    return Array.isArray(result.vocab) ? result.vocab : [];
+  } catch (e) {
+    console.error("Vocab translation failed", e);
+    return [];
+  }
+};
+
 // ─────────────────────────────────────────────────────────────
 // Traduz palavra — SÍNCRONO (função rápida, sem polling)
 // ─────────────────────────────────────────────────────────────
