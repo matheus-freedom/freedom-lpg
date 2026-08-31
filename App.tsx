@@ -8,6 +8,7 @@ import Home from './views/Home';
 import LessonGenerator from './views/LessonGenerator';
 import QuickLessonGenerator from './views/QuickLessonGenerator';
 import LessonDetail from './views/LessonDetail';
+import StudentWorksheet from './views/StudentWorksheet';
 import ClassroomView from './views/ClassroomView';
 import History from './views/History';
 import Login from './views/Login';
@@ -115,6 +116,7 @@ const App: React.FC = () => {
               <Route path="/generate" element={<LessonGenerator />} />
               <Route path="/quick-generate" element={<QuickLessonGenerator />} />
               <Route path="/lesson/:id" element={<LessonDetail />} />
+              <Route path="/worksheet/:id" element={<StudentWorksheet />} />
               <Route path="/classroom/:id" element={<ClassroomView />} />
               <Route path="/history" element={<History />} />
               <Route path="/profile" element={<Profile />} />
