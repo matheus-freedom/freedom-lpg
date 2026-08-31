@@ -39,6 +39,14 @@ export interface AudioConfig {
   voiceName: string;
 }
 
+// Entrada da lista de vocabulario do Student Worksheet.
+// Uma palavra em ingles pode ter mais de um significado em portugues,
+// por isso "translations" e uma lista (ex: "play" = jogar, brincar, tocar).
+export interface VocabEntry {
+    word: string;
+    translations: string[];
+}
+
 export interface LessonPlan {
   id: string;
   createdAt: number;
@@ -58,6 +66,10 @@ export interface LessonPlan {
   closingActivity?: string;
   homework?: string;
   audioConfig?: AudioConfig;
+    // Cache das traducoes do vocabulario para o Student Worksheet.
+    // Geramos uma vez (custa uma chamada de IA) e salvamos aqui no plano -
+    // os proximos downloads do worksheet saem instantaneos e de graca.
+    vocabTranslations?: VocabEntry[];
 }
 
 export interface UserStats {
