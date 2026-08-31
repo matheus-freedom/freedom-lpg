@@ -76,6 +76,13 @@ const LessonDetail: React.FC = () => {
           <button onClick={handlePrint} className="bg-white border-2 border-freedom-orange text-freedom-orange px-6 py-2 rounded-lg font-bold hover:bg-orange-50 transition-all">
             Download PDF
           </button>
+          {/* Worksheet do aluno: versao em 3 paginas SEM as notas do professor */}
+          <button
+            onClick={() => navigate(`/worksheet/${plan.id}`)}
+            className="bg-white border-2 border-freedom-gray text-freedom-gray px-6 py-2 rounded-lg font-bold hover:bg-gray-100 transition-all"
+          >
+            Student Worksheet
+          </button>
           <button 
             onClick={() => navigate(`/classroom/${plan.id}`)}
             className="bg-freedom-orange text-white px-8 py-2 rounded-lg font-title shadow-lg hover:scale-105 transition-all"
