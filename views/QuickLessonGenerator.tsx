@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FredGuide from '../components/FredGuide';
+import GrammarTopicSelect from '../components/GrammarTopicSelect';
 import { generateQuickLessonPlan, generateLessonImage } from '../services/geminiService';
 import { saveLessonPlanSafely } from '../services/storageService';
 import { CEFRLevel, StudentCount, AudioConfig, User } from '../types';
+import { GRAMMAR_CURRICULUM, CUSTOM_GRAMMAR_TOPIC } from '../data/grammarCurriculum';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────
 type TextType = 'narrative' | 'descriptive' | 'argumentative' | 'expository' | 'procedural' | 'comparative' | 'custom';
@@ -89,8 +91,29 @@ const QuickLessonGenerator: React.FC = () => {
   // ── Form base — sem pré-seleção ───────────────────────────────
   const [level, setLevel]                           = useState<CEFRLevel | null>(null);
   const [studentCount, setStudentCount]             = useState<StudentCount | null>(null);
-  const [grammarTopic, setGrammarTopic]             = useState('');
   const [vocabularyFocus, setVocabularyFocus]       = useState('');
+
+  // ── Gramática: dropdown filtrado pelo nível + opção custom ─────
+  // `grammarSelection` guarda o que está marcado no dropdown (um tema da
+  // sequência, CUSTOM_GRAMMAR_TOPIC ou '' quando vazio). O texto livre fica
+  // em `customGrammarTopic`. O valor final enviado ao Gemini é derivado dos
+  // dois em `grammarTopic`, logo abaixo — assim o resto do código não muda.
+  const [grammarSelection, setGrammarSelection]     = useState('');
+  const [customGrammarTopic, setCustomGrammarTopic] = useState('');
+  const grammarTopic = grammarSelection === CUSTOM_GRAMMAR_TOPIC
+    ? customGrammarTopic.trim()
+    : grammarSelection;
+
+  // Ao trocar de nível, a lista de temas muda. Um tema da sequência do A2 não
+  // existe no B1, então limpamos a seleção para o professor escolher de novo.
+  // A opção custom é independente de nível, por isso é preservada.
+  const handleLevelChange = (newLevel: CEFRLevel) => {
+    setLevel(newLevel);
+    if (grammarSelection && grammarSelection !== CUSTOM_GRAMMAR_TOPIC
+        && !GRAMMAR_CURRICULUM[newLevel].includes(grammarSelection)) {
+      setGrammarSelection('');
+    }
+  };
 
   // ── Texto ─────────────────────────────────────────────────────
   const [textType, setTextType]                     = useState<TextType | null>(null);
@@ -266,7 +289,7 @@ const QuickLessonGenerator: React.FC = () => {
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {levels.map(l => (
-                  <button key={l} type="button" onClick={() => setLevel(l)}
+                  <button key={l} type="button" onClick={() => handleLevelChange(l)}
                     className={`flex-1 min-w-[48px] py-2.5 rounded-xl font-black text-sm transition-all ${
                       level === l
                         ? 'bg-freedom-orange text-white shadow-lg shadow-orange-200'
@@ -294,17 +317,13 @@ const QuickLessonGenerator: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-freedom-gray font-black mb-2 uppercase text-[10px] tracking-widest">
-                Grammar Topic <span className="text-red-400">*</span>
-              </label>
-              <input type="text"
-                placeholder="Ex: There is / There are, Present Perfect..."
-                className="w-full p-3.5 border-2 border-gray-200 rounded-xl focus:border-freedom-orange outline-none font-medium text-sm transition-all"
-                value={grammarTopic}
-                onChange={e => setGrammarTopic(e.target.value)}
-              />
-            </div>
+            <GrammarTopicSelect
+              level={level}
+              selection={grammarSelection}
+              onSelectionChange={setGrammarSelection}
+              customValue={customGrammarTopic}
+              onCustomChange={setCustomGrammarTopic}
+            />
 
             <div>
               <label className="block text-freedom-gray font-black mb-2 uppercase text-[10px] tracking-widest">
@@ -591,6 +610,8 @@ const QuickLessonGenerator: React.FC = () => {
               {[
                 { label: 'Level',        value: level || '—',                                                                   warn: !level },
                 { label: 'Students',     value: studentCount ? `${studentCount} Student${studentCount > 1 ? 's' : ''}` : '—',  warn: !studentCount },
+                { label: 'Grammar',      value: grammarTopic || '—',                                                            warn: !grammarTopic },
+                { label: 'Vocabulary',   value: vocabularyFocus.trim() || '—',                                                  warn: !vocabularyFocus.trim() },
                 { label: 'Text',         value: textType === 'custom' ? 'Custom' : textType || '—' },
                 { label: 'Paragraphs',   value: paragraphCount ? String(paragraphCount) : 'Any' },
                 { label: 'Image',        value: imageStyle === 'custom' ? 'Custom' : imageStyle || '—' },
