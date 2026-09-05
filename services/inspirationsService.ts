@@ -1,6 +1,6 @@
 import { db } from "./firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { WeeklyInspirations, InspirationProposal, InspirationPrefill } from "../types";
+import { doc, getDoc, getDocs, collection, query, orderBy } from "firebase/firestore";
+import { WeeklyInspirations, InspirationProposal, InspirationPrefill, InspirationWeekSummary, InspirationsIndex } from "../types";
 import { startInspirationsGeneration } from "./geminiService";
 
 // ── Leitura ──────────────────────────────────────────────────
@@ -14,6 +14,54 @@ export const getCurrentInspirations = async (): Promise<WeeklyInspirations | nul
     return snap.data() as WeeklyInspirations;
   } catch (e) {
     console.error("Erro ao buscar inspirações:", e);
+    return null;
+  }
+};
+
+// ── Histórico ("Insights antigos") ───────────────────────────
+// Cada geração salva uma cópia em inspirations/week_AAAA-MM-DD, então
+// nada se perde. Para listar as semanas sem baixar todos esses documentos
+// (~40 KB cada), o servidor mantém inspirations/index com um resumo por
+// semana. Se o índice ainda não existir (semanas geradas antes dele),
+// caímos no plano B: varrer a coleção uma vez e montar os resumos aqui.
+export const listInspirationWeeks = async (): Promise<InspirationWeekSummary[]> => {
+  try {
+    const idx = await getDoc(doc(db, "inspirations", "index"));
+    if (idx.exists()) {
+      const data = idx.data() as InspirationsIndex;
+      return (data.weeks || []).slice().sort((a, b) => b.generatedAt - a.generatedAt);
+    }
+  } catch (e) {
+    console.warn("Índice de inspirações indisponível, usando fallback:", e);
+  }
+
+  try {
+    const snap = await getDocs(query(collection(db, "inspirations"), orderBy("generatedAt", "desc")));
+    return snap.docs
+      .filter(d => d.id.startsWith("week_"))
+      .map(d => {
+        const w = d.data() as WeeklyInspirations;
+        return {
+          weekId: w.weekId,
+          generatedAt: w.generatedAt,
+          total: (w.categories || []).reduce((n, c) => n + (c.proposals || []).length, 0),
+          groundingUsed: !!w.groundingUsed,
+          headlines: w.headlines || [],
+        };
+      });
+  } catch (e) {
+    console.error("Erro ao listar semanas de inspirações:", e);
+    return [];
+  }
+};
+
+export const getInspirationsByWeek = async (weekId: string): Promise<WeeklyInspirations | null> => {
+  try {
+    const snap = await getDoc(doc(db, "inspirations", `week_${weekId}`));
+    if (!snap.exists()) return null;
+    return snap.data() as WeeklyInspirations;
+  } catch (e) {
+    console.error("Erro ao buscar semana de inspirações:", e);
     return null;
   }
 };
