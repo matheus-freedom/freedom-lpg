@@ -122,6 +122,8 @@ const App: React.FC = () => {
               <Route path="/classroom/:id" element={<ClassroomView />} />
               <Route path="/history" element={<History />} />
               <Route path="/inspirations" element={<Inspirations user={user} />} />
+              <Route path="/inspirations/:view" element={<Inspirations user={user} />} />
+              <Route path="/inspirations/:view/:weekId" element={<Inspirations user={user} />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/admin" element={user.role === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />} />
               <Route path="/login" element={<Navigate to="/" replace />} />
