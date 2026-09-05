@@ -220,7 +220,7 @@ RULES
 - "health": informative and positive; no medical advice, no diet-culture or body-shaming angles.
 - "kids" (ages 6-11): levels A1/A2 only; playful, concrete, game/story/song-friendly topics (animals, cartoons, toys, family, school, superheroes, food); questions a child can answer with short sentences; tie 2-3 to what kids are into right now (films, games, shows).
 - "teens" (ages 12-17): levels A2-B2; identity, friendship, school, gaming, music, creators, social media, sports, future plans; respectful and never preachy; tie 2-3 to what teens are talking about this week.
-- Avoid graphic violence, tragedy exploitation and anything unsuitable for teens.
+- NEVER build a proposal around deaths, accidents, attacks, wars, disasters or crimes, even if they are in the briefing — pick the constructive angle (science, culture, business, sport, innovation) or skip the item. Nothing unsuitable for teens.
 - Titles, hooks, vocabulary, questions and grammarIdea in ENGLISH. "whyNow" and headline "why" in BRAZILIAN PORTUGUESE.
 - Vocabulary must be words a student would actually need to discuss the topic, not generic words.
 ${avoid}`;
