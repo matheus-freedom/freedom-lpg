@@ -7,9 +7,12 @@ import {
   getDoc,
   deleteDoc, 
   doc, 
-  query, 
-  where, 
-  updateDoc 
+  query,
+  where,
+  updateDoc,
+  orderBy,
+  limit,
+  getCountFromServer
 } from "firebase/firestore";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
 
@@ -137,6 +140,44 @@ export const getSavedPlans = async (): Promise<LessonPlan[]> => {
   } catch (e) {
     console.error("Erro ao buscar planos:", e);
     return [];
+  }
+};
+
+// ── Últimas aulas (carrossel da Home) ──
+// Diferente de getSavedPlans(), que baixa a coleção INTEIRA, aqui pedimos
+// ao Firestore só as N mais recentes, já ordenadas. Custa N leituras em
+// vez de centenas, e a Home abre mais rápido conforme o acervo cresce.
+export const getRecentPlans = async (max = 10): Promise<LessonPlan[]> => {
+  try {
+    const q = query(collection(db, PLANS_COLLECTION), orderBy("createdAt", "desc"), limit(max));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as LessonPlan);
+  } catch (e) {
+    console.error("Erro ao buscar aulas recentes:", e);
+    return [];
+  }
+};
+
+// ── Contadores (rodapé da Home) ──
+// getCountFromServer é a "consulta de agregação" do Firestore: o servidor
+// conta e devolve só o número. Custa 1 leitura a cada 1000 documentos,
+// em vez de baixar todos os planos só para fazer .length.
+// O total pessoal usa o campo userId, gravado desde a migração para o
+// Firebase; aulas muito antigas sem userId não entram nessa conta.
+export const getLessonCounts = async (userId?: string): Promise<{ mine: number; global: number }> => {
+  try {
+    const globalSnap = await getCountFromServer(collection(db, PLANS_COLLECTION));
+    let mine = 0;
+    if (userId) {
+      const mineSnap = await getCountFromServer(
+        query(collection(db, PLANS_COLLECTION), where("userId", "==", userId))
+      );
+      mine = mineSnap.data().count;
+    }
+    return { mine, global: globalSnap.data().count };
+  } catch (e) {
+    console.error("Erro ao contar aulas:", e);
+    return { mine: 0, global: 0 };
   }
 };
 
