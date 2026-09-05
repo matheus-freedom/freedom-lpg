@@ -269,6 +269,26 @@ const normalizeInspirations = (generated) => {
   return { headlines, categories };
 };
 
+const MAX_INDEXED_WEEKS = 104;
+
+const updateInspirationsIndex = async (db, summary) => {
+  const ref = db.collection("inspirations").doc("index");
+  let weeks = [];
+  try {
+    const snap = await ref.get();
+    if (snap.exists) weeks = snap.data().weeks || [];
+  } catch (e) {
+    console.warn("[inspirations] Não consegui ler o índice, recriando:", e.message);
+  }
+  // Se a mesma semana for gerada de novo (botão "Gerar agora"), substitui a
+  // entrada em vez de duplicar.
+  weeks = [summary, ...weeks.filter(w => w.weekId !== summary.weekId)]
+    .sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0))
+    .slice(0, MAX_INDEXED_WEEKS);
+  await ref.set({ weeks, updatedAt: Date.now() });
+  console.log(`[inspirations] Índice atualizado: ${weeks.length} semana(s)`);
+};
+
 const generateInspirations = async (ai, db) => {
   const now = Date.now();
   const todayISO = brazilDateISO(now);
@@ -319,6 +339,18 @@ const generateInspirations = async (ai, db) => {
   await col.doc("current").set(docData);
   await col.doc(`week_${todayISO}`).set(docData);
   console.log(`[inspirations] Salvo: ${total} propostas, grounding=${groundingUsed}`);
+
+  // Índice leve para a lista "Insights antigos" do app: um documento só,
+  // com o resumo de cada semana (data, manchetes, total). O app lê este
+  // índice (pequeno) e só baixa o documento completo da semana que o
+  // professor abrir. Guardamos até 104 semanas (2 anos).
+  await updateInspirationsIndex(db, {
+    weekId: todayISO,
+    generatedAt: now,
+    total,
+    groundingUsed,
+    headlines: normalized.headlines,
+  });
 
   return { weekId: todayISO, total, groundingUsed };
 };
