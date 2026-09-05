@@ -63,7 +63,10 @@ exports.handler = async (event) => {
     // Retorna jobId imediatamente. O frontend faz polling
     // no Firebase para buscar o resultado quando ficar pronto.
     // ---------------------------------------------------------
-    if (action === "generateContent" || action === "generateImage") {
+    // "generateInspirations" (botão "Gerar agora" do admin) também vai
+    // para a background: pesquisa no Google + 40 propostas passam fácil
+    // dos 26 segundos desta função.
+    if (action === "generateContent" || action === "generateImage" || action === "generateInspirations") {
       const jobId = generateJobId();
 
       // Determina a URL base do site.
@@ -90,7 +93,7 @@ exports.handler = async (event) => {
         const dispatchResponse = await fetch(backgroundUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jobId, action, payload }),
+          body: JSON.stringify({ jobId, action, payload: payload || {} }),
         });
         console.log("[gemini] Background respondeu status:", dispatchResponse.status);
       } catch (err) {
