@@ -14,6 +14,7 @@ import History from './views/History';
 import Login from './views/Login';
 import AdminDashboard from './views/AdminDashboard';
 import Profile from './views/Profile';
+import Inspirations from './views/Inspirations';
 import { User } from './types';
 
 const App: React.FC = () => {
@@ -102,6 +103,7 @@ const App: React.FC = () => {
                     <Link to="/admin" className="text-green-400 hover:text-white transition-colors border-b border-green-400/30">Admin Panel</Link>
                   )}
                   <Link to="/history" className="hover:text-freedom-orange transition-colors">Freedom Library</Link>
+                  <Link to="/inspirations" className="hover:text-freedom-orange transition-colors">Inspirações</Link>
                   <Link to="/quick-generate" className="hover:text-freedom-orange transition-colors">Quick Lesson</Link>
                 </div>
                 <button onClick={handleLogout} className="text-red-400 hover:text-red-500 transition-colors">Logout</button>
@@ -119,6 +121,7 @@ const App: React.FC = () => {
               <Route path="/worksheet/:id" element={<StudentWorksheet />} />
               <Route path="/classroom/:id" element={<ClassroomView />} />
               <Route path="/history" element={<History />} />
+              <Route path="/inspirations" element={<Inspirations user={user} />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/admin" element={user.role === 'admin' ? <AdminDashboard /> : <Navigate to="/" replace />} />
               <Route path="/login" element={<Navigate to="/" replace />} />
