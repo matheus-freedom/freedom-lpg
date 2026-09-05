@@ -128,6 +128,23 @@ export interface WeeklyInspirations {
   categories: InspirationCategory[];
 }
 
+// Resumo de uma semana, guardado em inspirations/index (lista "Insights
+// antigos"). É leve de propósito: a lista carrega 1 documento pequeno e o
+// conteúdo completo de cada semana (~40 KB) só é lido quando o professor
+// abre aquela semana.
+export interface InspirationWeekSummary {
+  weekId: string;
+  generatedAt: number;
+  total: number;
+  groundingUsed: boolean;
+  headlines: InspirationHeadline[];
+}
+
+export interface InspirationsIndex {
+  weeks: InspirationWeekSummary[]; // mais recente primeiro
+  updatedAt: number;
+}
+
 // O que a aba Inspirações envia ao Quick Lesson via navigate(..., { state })
 // para pré-preencher o formulário.
 export interface InspirationPrefill {
