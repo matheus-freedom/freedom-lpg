@@ -102,6 +102,23 @@ const callGeminiWithPolling = async (
 };
 
 // ─────────────────────────────────────────────────────────────
+// Inspirações semanais — regeneração manual (botão do admin)
+// O prompt inteiro mora no servidor (gemini-background), então
+// aqui só disparamos o job e esperamos o "done".
+// ─────────────────────────────────────────────────────────────
+export const startInspirationsGeneration = async (
+  onProgress?: (message: string) => void
+): Promise<{ weekId: string; total: number; groundingUsed: boolean }> => {
+  onProgress?.("Pesquisando os assuntos da semana...");
+  const result = await callGeminiWithPolling("generateInspirations", {}, onProgress, 600_000);
+  return {
+    weekId: result.weekId,
+    total: result.total,
+    groundingUsed: !!result.groundingUsed,
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
 // Schema do plano de aula
 // ─────────────────────────────────────────────────────────────
 const lessonPlanSchema = {
