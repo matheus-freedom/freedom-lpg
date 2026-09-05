@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import FredGuide from '../components/FredGuide';
 import GrammarTopicSelect from '../components/GrammarTopicSelect';
 import { generateQuickLessonPlan, generateLessonImage } from '../services/geminiService';
 import { saveLessonPlanSafely } from '../services/storageService';
-import { CEFRLevel, StudentCount, AudioConfig, User } from '../types';
+import { CEFRLevel, StudentCount, AudioConfig, User, InspirationPrefill } from '../types';
 import { GRAMMAR_CURRICULUM, CUSTOM_GRAMMAR_TOPIC } from '../data/grammarCurriculum';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────
@@ -79,6 +79,7 @@ const Section: React.FC<{
 // ─── Componente Principal ─────────────────────────────────────────────────
 const QuickLessonGenerator: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading]             = useState(false);
   const [loadingStatus, setLoadingStatus] = useState('Fred is starting...');
   const [currentUser, setCurrentUser]     = useState<User | null>(null);
@@ -88,10 +89,18 @@ const QuickLessonGenerator: React.FC = () => {
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
   }, []);
 
-  // ── Form base — sem pré-seleção ───────────────────────────────
-  const [level, setLevel]                           = useState<CEFRLevel | null>(null);
+  // ── Veio da aba Inspirações? ──────────────────────────────────
+  // A aba faz navigate('/quick-generate', { state: { inspiration } }).
+  // Lemos esse state UMA vez, no primeiro render, e usamos como valor
+  // inicial dos campos. Abrindo o Quick Lesson pelo menu, state é null
+  // e o formulário começa vazio, como sempre foi.
+  const inspiration: InspirationPrefill | null =
+    (location.state as { inspiration?: InspirationPrefill } | null)?.inspiration ?? null;
+
+  // ── Form base — sem pré-seleção (exceto quando vem de uma inspiração) ──
+  const [level, setLevel]                           = useState<CEFRLevel | null>(inspiration?.level ?? null);
   const [studentCount, setStudentCount]             = useState<StudentCount | null>(null);
-  const [vocabularyFocus, setVocabularyFocus]       = useState('');
+  const [vocabularyFocus, setVocabularyFocus]       = useState(inspiration?.vocabularyFocus ?? '');
 
   // ── Gramática: dropdown filtrado pelo nível + opção custom ─────
   // `grammarSelection` guarda o que está marcado no dropdown (um tema da
@@ -131,7 +140,7 @@ const QuickLessonGenerator: React.FC = () => {
   // ── Conversação ───────────────────────────────────────────────
   const [conversationApproaches, setConversationApproaches] = useState<ConversationApproach[]>([]);
   const [customConversation, setCustomConversation]         = useState('');
-  const [extraInfo, setExtraInfo]                           = useState('');
+  const [extraInfo, setExtraInfo]                           = useState(inspiration?.extraInfo ?? '');
 
   // ── Dificuldade ───────────────────────────────────────────────
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
@@ -265,7 +274,23 @@ const QuickLessonGenerator: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      <FredGuide message="Power lesson mode! Choose your level and students first — nothing is pre-selected so you always make a conscious choice. Then customize everything below!" />
+      <FredGuide message={inspiration
+        ? `Tema vindo das Inspirações: "${inspiration.title}". Já preenchi nível, vocabulary focus e o contexto extra — escolha os alunos e a gramática e vamos criar!`
+        : "Power lesson mode! Choose your level and students first — nothing is pre-selected so you always make a conscious choice. Then customize everything below!"
+      } />
+
+      {inspiration && (
+        <div className="flex items-center justify-between gap-4 bg-freedom-gray text-white rounded-2xl px-5 py-3 mb-4 animate-slideDown">
+          <div className="min-w-0">
+            <p className="text-freedom-orange text-[9px] font-black uppercase tracking-[0.3em]">💡 Inspiração da semana</p>
+            <p className="text-sm font-extrabold tracking-tight truncate">{inspiration.title}</p>
+            {inspiration.grammarIdea && (
+              <p className="text-gray-400 text-[10px] font-bold mt-0.5">Sugestão de gramática: <span className="text-white">{inspiration.grammarIdea}</span> — escolha o equivalente no dropdown abaixo.</p>
+            )}
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 shrink-0">{inspiration.level}</span>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
 
