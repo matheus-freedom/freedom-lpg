@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { User, WeeklyInspirations, InspirationCategoryId, InspirationProposal, CEFRLevel } from '../types';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { User, WeeklyInspirations, InspirationCategoryId, InspirationProposal, CEFRLevel, InspirationWeekSummary } from '../types';
 import FredGuide from '../components/FredGuide';
 import {
   getCurrentInspirations,
+  getInspirationsByWeek,
+  listInspirationWeeks,
   regenerateInspirations,
   proposalToPrefill,
   getNextRefreshDate,
@@ -97,10 +99,79 @@ const ProposalCard: React.FC<{
   </article>
 );
 
+// ─── Lista de semanas anteriores ("Insights antigos") ─────────────────────
+const ArchiveList: React.FC<{ currentWeekId?: string }> = ({ currentWeekId }) => {
+  const [weeks, setWeeks] = useState<InspirationWeekSummary[] | null>(null);
+
+  useEffect(() => { listInspirationWeeks().then(setWeeks); }, []);
+
+  // A semana atual também está no histórico, mas ela já é a tela principal —
+  // aqui mostramos só as anteriores.
+  const past = (weeks || []).filter(w => w.weekId !== currentWeekId);
+
+  if (weeks === null) {
+    return (
+      <div className="flex justify-center py-24">
+        <div className="w-10 h-10 border-4 border-freedom-orange border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (past.length === 0) {
+    return (
+      <div className="text-center py-24 bg-white rounded-[3rem] shadow-sm border border-dashed border-gray-200 px-6">
+        <div className="text-6xl mb-4">🗂️</div>
+        <h2 className="text-freedom-gray font-extrabold text-2xl tracking-tight mb-2">Ainda não há semanas anteriores.</h2>
+        <p className="text-gray-400 font-bold text-xs uppercase tracking-widest max-w-md mx-auto">
+          A partir do próximo domingo, cada semana que passar fica guardada aqui — nenhuma ideia se perde.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {past.map(w => (
+        <Link
+          key={w.weekId}
+          to={`/inspirations/archive/${w.weekId}`}
+          className="group bg-white rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all p-7 flex flex-col"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-freedom-orange text-[10px] font-black uppercase tracking-[0.3em]">Semana de {formatWeek(w.weekId)}</p>
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{w.total} propostas</span>
+          </div>
+          <p className="text-freedom-gray font-extrabold text-lg leading-tight tracking-tight mb-3">
+            {w.headlines.length > 0 ? w.headlines.slice(0, 3).map(h => h.topic).join(' · ') : 'Inspirações da semana'}
+          </p>
+          {w.headlines.length > 3 && (
+            <p className="text-gray-400 text-xs font-medium mb-3">+ {w.headlines.slice(3).map(h => h.topic).join(' · ')}</p>
+          )}
+          <div className="mt-auto flex items-center justify-between pt-4 border-t border-gray-50">
+            <span className={`text-[10px] font-bold uppercase tracking-widest ${w.groundingUsed ? 'text-green-600' : 'text-amber-600'}`}>
+              {w.groundingUsed ? '● Pesquisa ao vivo' : '● Sem pesquisa ao vivo'}
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-freedom-gray group-hover:text-freedom-orange transition-colors">Abrir semana →</span>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+};
+
 // ─── Página ───────────────────────────────────────────────────────────────
+// Três modos, decididos pela URL:
+//   /inspirations                    → semana atual (inspirations/current)
+//   /inspirations/archive            → lista "Insights antigos"
+//   /inspirations/archive/:weekId    → uma semana anterior, no mesmo layout
 const Inspirations: React.FC<InspirationsProps> = ({ user }) => {
   const navigate = useNavigate();
+  const { weekId, view } = useParams<{ weekId?: string; view?: string }>();
+  const isArchiveList = view === 'archive' && !weekId;
+  const isArchivedWeek = !!weekId;
+
   const [data, setData] = useState<WeeklyInspirations | null>(null);
+  const [currentWeekId, setCurrentWeekId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<InspirationCategoryId>('trending');
   const [levelFilter, setLevelFilter] = useState<CEFRLevel | 'ALL'>('ALL');
@@ -112,12 +183,22 @@ const Inspirations: React.FC<InspirationsProps> = ({ user }) => {
 
   const load = async () => {
     setLoading(true);
-    const doc = await getCurrentInspirations();
-    setData(doc);
+    if (isArchivedWeek && weekId) {
+      // Semana antiga: documento inspirations/week_<id>. A semana atual é
+      // lida só para sabermos qual é (o índice do arquivo a esconde).
+      const [week, current] = await Promise.all([getInspirationsByWeek(weekId), getCurrentInspirations()]);
+      setData(week);
+      setCurrentWeekId(current?.weekId);
+    } else {
+      const current = await getCurrentInspirations();
+      setData(current);
+      setCurrentWeekId(current?.weekId);
+    }
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  // Recarrega quando a URL muda (atual ↔ arquivo ↔ semana X)
+  useEffect(() => { load(); window.scrollTo(0, 0); }, [weekId, view]);
 
   const handleRegenerate = async () => {
     if (regenerating) return;
@@ -143,73 +224,129 @@ const Inspirations: React.FC<InspirationsProps> = ({ user }) => {
   const category = data?.categories.find(c => c.id === activeCategory) || data?.categories[0];
   const visibleProposals = (category?.proposals || []).filter(p => levelFilter === 'ALL' || p.level === levelFilter);
 
+  const fredMessage = isArchiveList
+    ? 'Aqui ficam guardadas as inspirações de todas as semanas anteriores. Uma boa ideia não tem prazo de validade — abra qualquer semana e crie a aula a partir dela.'
+    : isArchivedWeek
+      ? `Você está revendo a semana de ${formatWeek(weekId)}. Os temas "em alta" eram daquela época, mas todas as propostas continuam prontas para virar aula.`
+      : 'Toda semana eu pesquiso o que o mundo — e o Brasil — está discutindo e transformo em 50 propostas de aula, cinco em cada área (incluindo Kids e Teens). Escolha um tema e eu já deixo o Quick Lesson pronto para você ajustar.';
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 animate-fadeIn">
-      <FredGuide message="Toda semana eu pesquiso o que o mundo — e o Brasil — está discutindo e transformo em 50 propostas de aula, cinco em cada área (incluindo Kids e Teens). Escolha um tema e eu já deixo o Quick Lesson pronto para você ajustar." />
+      <FredGuide message={fredMessage} />
 
       {/* ── Cabeçalho ─────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-8">
         <div>
+          {(isArchiveList || isArchivedWeek) && (
+            <Link to="/inspirations" className="inline-block text-freedom-orange font-black text-[10px] uppercase tracking-[0.2em] hover:underline mb-3">
+              ← Semana atual
+            </Link>
+          )}
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-freedom-gray leading-none">
-            Inspira<span className="text-freedom-orange">ções</span>
+            {isArchiveList ? (
+              <>Insights <span className="text-freedom-orange">antigos</span></>
+            ) : (
+              <>Inspira<span className="text-freedom-orange">ções</span></>
+            )}
           </h1>
           <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-            {data ? (
+            {isArchiveList ? (
+              <span>Todas as semanas anteriores, da mais recente para a mais antiga</span>
+            ) : data ? (
               <>
-                <span>Semana de {formatWeek(data.weekId)}</span>
+                <span>{isArchivedWeek ? 'Arquivo · semana de' : 'Semana de'} {formatWeek(data.weekId)}</span>
                 <span className="text-gray-300">·</span>
                 <span className={data.groundingUsed ? 'text-green-600' : 'text-amber-600'}>
                   {data.groundingUsed ? '● Pesquisa ao vivo no Google' : '● Sem pesquisa ao vivo nesta semana'}
                 </span>
-                <span className="text-gray-300">·</span>
+                {!isArchivedWeek && (
+                  <>
+                    <span className="text-gray-300">·</span>
+                    <span>Renova {formatNextRefresh()} ({formatRefreshCountdown()})</span>
+                  </>
+                )}
               </>
-            ) : null}
-            <span>Renova {formatNextRefresh()} ({formatRefreshCountdown()})</span>
+            ) : (
+              <span>Renova {formatNextRefresh()} ({formatRefreshCountdown()})</span>
+            )}
           </p>
         </div>
 
-        {isAdmin && (
-          <div className="flex flex-col items-start lg:items-end gap-2">
-            <button
-              type="button"
-              onClick={handleRegenerate}
-              disabled={regenerating}
-              className="bg-freedom-gray hover:bg-black disabled:opacity-60 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all border-b-4 border-gray-900"
-            >
-              {regenerating ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-3 border-2 border-freedom-orange border-t-transparent rounded-full animate-spin" />
-                  {regenStatus || 'Gerando...'}
-                </span>
-              ) : '↻ Gerar agora (admin)'}
-            </button>
-            {regenError && <p className="text-red-500 text-[10px] font-bold">{regenError}</p>}
+        <div className="flex flex-col items-start lg:items-end gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {!isArchiveList && (
+              <Link
+                to="/inspirations/archive"
+                className="bg-white hover:bg-freedom-gray hover:text-white text-freedom-gray border border-gray-200 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm transition-all"
+              >
+                🗂️ Insights antigos
+              </Link>
+            )}
+            {isAdmin && !isArchiveList && !isArchivedWeek && (
+              <button
+                type="button"
+                onClick={handleRegenerate}
+                disabled={regenerating}
+                className="bg-freedom-gray hover:bg-black disabled:opacity-60 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all border-b-4 border-gray-900"
+              >
+                {regenerating ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-3 h-3 border-2 border-freedom-orange border-t-transparent rounded-full animate-spin" />
+                    {regenStatus || 'Gerando...'}
+                  </span>
+                ) : '↻ Gerar agora (admin)'}
+              </button>
+            )}
           </div>
-        )}
+          {regenError && <p className="text-red-500 text-[10px] font-bold">{regenError}</p>}
+        </div>
       </div>
 
-      {loading ? (
+      {isArchiveList ? (
+        <ArchiveList currentWeekId={currentWeekId} />
+      ) : loading ? (
         <div className="flex justify-center py-32">
           <div className="w-10 h-10 border-4 border-freedom-orange border-t-transparent rounded-full animate-spin" />
         </div>
       ) : !data ? (
-        /* ── Estado vazio: ainda não houve geração ─────────────── */
+        /* ── Estado vazio ─────────────────────────────────────── */
         <div className="text-center py-24 bg-white rounded-[3rem] shadow-sm border border-dashed border-gray-200 px-6">
           <div className="text-6xl mb-4">💡</div>
-          <h2 className="text-freedom-gray font-extrabold text-2xl tracking-tight mb-2">As inspirações desta semana ainda não foram geradas.</h2>
-          <p className="text-gray-400 font-bold text-xs uppercase tracking-widest max-w-md mx-auto">
-            A plataforma gera automaticamente todo domingo às 18h.
-            {isAdmin ? ' Como admin, você pode gerar agora pelo botão acima.' : ' Peça ao administrador para gerar agora.'}
-          </p>
+          {isArchivedWeek ? (
+            <>
+              <h2 className="text-freedom-gray font-extrabold text-2xl tracking-tight mb-2">Não encontrei a semana de {formatWeek(weekId)}.</h2>
+              <Link to="/inspirations/archive" className="text-freedom-orange font-black text-xs uppercase tracking-widest hover:underline">Ver todas as semanas</Link>
+            </>
+          ) : (
+            <>
+              <h2 className="text-freedom-gray font-extrabold text-2xl tracking-tight mb-2">As inspirações desta semana ainda não foram geradas.</h2>
+              <p className="text-gray-400 font-bold text-xs uppercase tracking-widest max-w-md mx-auto">
+                A plataforma gera automaticamente todo domingo às 18h.
+                {isAdmin ? ' Como admin, você pode gerar agora pelo botão acima.' : ' Peça ao administrador para gerar agora.'}
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <>
-          {/* ── Em alta esta semana ───────────────────────────── */}
+          {isArchivedWeek && (
+            <div className="flex items-center justify-between gap-4 bg-freedom-gray text-white rounded-2xl px-5 py-3 mb-6">
+              <p className="text-sm font-bold">
+                <span className="text-freedom-orange text-[9px] font-black uppercase tracking-[0.3em] mr-3">Arquivo</span>
+                Inspirações da semana de {formatWeek(data.weekId)}
+              </p>
+              <Link to="/inspirations/archive" className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-freedom-orange shrink-0">Outras semanas →</Link>
+            </div>
+          )}
+
+          {/* ── Em alta ───────────────────────────────────────── */}
           {data.headlines.length > 0 && (
             <section className="relative bg-[#141414] rounded-[2.5rem] p-7 md:p-9 mb-8 overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_50%,rgba(247,147,30,0.22),transparent_55%)]" />
               <div className="relative">
-                <p className="text-freedom-orange text-[10px] font-black uppercase tracking-[0.3em] mb-4">🔥 Em alta esta semana</p>
+                <p className="text-freedom-orange text-[10px] font-black uppercase tracking-[0.3em] mb-4">
+                  🔥 {isArchivedWeek ? `Em alta na semana de ${formatWeek(data.weekId)}` : 'Em alta esta semana'}
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {data.headlines.map((h, i) => (
                     <div key={i} className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3 backdrop-blur">
