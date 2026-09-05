@@ -12,6 +12,12 @@
 [functions.gemini-background]
   timeout = 900
 
+# Inspirações semanais — dispara a background function todo domingo
+# às 21:00 UTC (= 18:00 em Brasília; o Brasil não tem horário de verão).
+# Cron é sempre avaliado em UTC pela Netlify.
+[functions.inspirations-weekly]
+  schedule = "0 21 * * 0"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
