@@ -656,15 +656,20 @@ const ClassroomView: React.FC = () => {
 
       <div className="flex-1 flex flex-col items-center justify-center p-2 lg:p-4 overflow-hidden relative">
         <div className="w-[98vw] h-[92vh] rounded-[2.5rem] shadow-[0_40px_120px_rgba(0,0,0,.6)] relative overflow-hidden border-b-[10px] border-freedom-orange bg-[#141414] text-white">
-          {/* Palco: ilustracao da aula ao fundo (desfocada) + veu escuro + vinheta */}
-          {dynamicImage ? (
-            <div
-              className="absolute -inset-[6%] bg-center bg-cover"
-              style={{ backgroundImage: `url(${dynamicImage})`, filter: 'blur(14px) saturate(1.15)', transform: 'scale(1.06)' }}
-            />
-          ) : (
-            <div className="absolute inset-0" style={STAGE_FALLBACK_STYLE} />
-          )}
+          {/* Palco: ilustracao da aula ao fundo (desfocada) + veu escuro + vinheta.
+              A imagem e 6% maior que o palco (para o blur nao deixar borda clara), entao
+              ela fica dentro de uma caixa inset-0 com overflow-hidden: sem isso o excesso
+              vira area "rolavel" e o navegador desloca o palco ao focar botoes perto da base. */}
+          <div className="absolute inset-0 overflow-hidden">
+            {dynamicImage ? (
+              <div
+                className="absolute -inset-[6%] bg-center bg-cover"
+                style={{ backgroundImage: `url(${dynamicImage})`, filter: 'blur(14px) saturate(1.15)', transform: 'scale(1.06)' }}
+              />
+            ) : (
+              <div className="absolute inset-0" style={STAGE_FALLBACK_STYLE} />
+            )}
+          </div>
           <div className="absolute inset-0" style={STAGE_SCRIM_STYLE} />
           <div className="absolute inset-0" style={STAGE_VIGNETTE_STYLE} />
 
