@@ -277,9 +277,11 @@ const ClassroomView: React.FC = () => {
       illustration: dynamicImage
     });
 
-    if (plan.quiz && plan.quiz.length > 0) {
-      slides.push({ type: 'quiz', title: "Knowledge Test", content: plan.quiz.slice(0, 5) });
-    }
+    // Uma pergunta por slide: a tela fica limpa e o grupo foca em uma questao de cada vez.
+    const quickQuiz = (plan.quiz || []).slice(0, 5);
+    quickQuiz.forEach((q, i) => {
+      slides.push({ type: 'quiz', question: q, qIndex: i, qTotal: quickQuiz.length });
+    });
 
     plan.sections.slice(1, 11).forEach((sec, idx) => {
       slides.push({
@@ -294,7 +296,7 @@ const ClassroomView: React.FC = () => {
     slides = [
       { type: 'title', title: cleanTitle(plan.title), subtitle: `${plan.level} Class` },
       ...plan.sections.map(s => ({ type: 'content', title: cleanTitle(s.title), content: s.studentContent, backgroundQuestions: s.backgroundQuestions })),
-      ...(plan.quiz && plan.quiz.length > 0 ? [{ type: 'quiz', title: "Review Quiz", content: plan.quiz }] : [])
+      ...(plan.quiz || []).map((q, i, arr) => ({ type: 'quiz', question: q, qIndex: i, qTotal: arr.length }))
     ];
   }
 
@@ -383,10 +385,7 @@ const ClassroomView: React.FC = () => {
             <div className="flex-1 max-w-[38%] flex flex-col gap-3.5">
               <div className="w-full flex-1 min-h-0 rounded-[28px] overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,.55)] outline outline-2 outline-white/15 bg-white/5 relative">
                 {dynamicImage ? (
-                  <>
-                    <img src={dynamicImage} alt="Context" className="w-full h-full object-cover animate-fadeIn" />
-                    <div className="absolute inset-x-0 bottom-0 pt-7 pb-4 px-5 bg-gradient-to-t from-black/65 to-transparent text-white text-[10px] font-extrabold tracking-[0.2em] uppercase">Lesson illustration</div>
-                  </>
+                  <img src={dynamicImage} alt="Context" className="w-full h-full object-cover animate-fadeIn" />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
                     <div className="w-20 h-20 bg-freedom-orange/15 rounded-full flex items-center justify-center mb-4 text-freedom-orange">
@@ -484,40 +483,63 @@ const ClassroomView: React.FC = () => {
     }
 
     if (slide.type === 'quiz') {
-      const questions = slide.content as QuizQuestion[];
+      // Um slide por pergunta. O estado das respostas continua indexado pela posicao
+      // da pergunta no quiz (qIndex), entao voltar um slide mantem a resposta dada.
+      const q = slide.question as QuizQuestion;
+      const qIdx = slide.qIndex as number;
+      const state = quizState[qIdx];
+      const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
       return (
-        <div className="w-full h-full flex flex-col overflow-hidden">
-           <div className="flex items-baseline gap-4 mb-5 shrink-0">
-             <div className="text-[11px] font-extrabold tracking-[0.28em] uppercase text-freedom-orange">Exercise</div>
-             <h2 className="text-2xl lg:text-3xl font-extrabold text-white uppercase tracking-tight">Knowledge Lab</h2>
+        <div className="w-full h-full flex flex-col justify-center relative px-4 lg:px-10">
+          <div className="flex items-center gap-4 mb-6 shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-freedom-orange text-white flex items-center justify-center font-black italic text-xl shadow-[0_8px_18px_rgba(247,147,30,.35)]">{qIdx + 1}</div>
+            <div>
+              <div className="text-[11px] font-extrabold tracking-[0.28em] uppercase text-freedom-orange">Knowledge Lab</div>
+              <div className="text-[11px] font-bold tracking-[0.18em] uppercase text-white/45">Question {qIdx + 1} of {slide.qTotal}</div>
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto pr-3 custom-scrollbar space-y-3.5 pb-4">
-            {questions.map((q, qIdx) => {
-              const state = quizState[qIdx];
-              return (
-                <div key={qIdx} className={`${GLASS_CARD} rounded-[22px] px-5 py-4 grid grid-cols-[44px_1fr] gap-x-4 gap-y-1.5`}>
-                  <div className="row-span-2 w-10 h-10 rounded-xl bg-freedom-orange text-white flex items-center justify-center font-black italic text-lg shadow-[0_6px_14px_rgba(247,147,30,.3)]">{qIdx + 1}</div>
-                  <h4 className="text-base lg:text-[17px] font-extrabold text-white m-0">{q.question}</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {q.options.map((opt, oIdx) => {
-                      const isCorrect = oIdx === q.correctIndex;
-                      const isSelected = state?.selected === oIdx;
-                      let btnClass = "px-3.5 py-2.5 rounded-xl border text-left transition-all text-[13px] font-bold leading-snug ";
-                      if (state?.confirmed) {
-                        if (isCorrect) btnClass += "bg-green-500/15 border-green-500 text-green-400";
-                        else if (isSelected) btnClass += "bg-red-500/15 border-red-500 text-red-400";
-                        else btnClass += "bg-white/5 border-white/10 text-white opacity-35";
-                      } else { btnClass += "bg-white/5 border-white/10 text-white hover:border-freedom-orange"; }
-                      return (
-                        <button key={oIdx} onClick={() => { if (!quizState[qIdx]?.confirmed) setQuizState({...quizState, [qIdx]: { selected: oIdx, confirmed: true }}); }} className={btnClass}>
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+
+          <div className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto custom-scrollbar">
+            <h2
+              className="text-white font-bold max-w-[30ch] m-0"
+              style={{ fontSize: `${fontSize * 1.25}px`, lineHeight: 1.2, letterSpacing: '-.01em', textShadow: `0 2px 30px rgba(${STAGE_INK},.6)`, textWrap: 'balance' } as React.CSSProperties}
+            >
+              {q.question}
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-8 max-w-5xl w-full">
+              {q.options.map((opt, oIdx) => {
+                const isCorrect = oIdx === q.correctIndex;
+                const isSelected = state?.selected === oIdx;
+                let btnClass = `${GLASS_CARD} rounded-[18px] px-5 py-4 text-left transition-all flex items-start gap-4 `;
+                let letterClass = "w-8 h-8 shrink-0 rounded-lg flex items-center justify-center font-black text-sm ";
+                if (state?.confirmed) {
+                  if (isCorrect) { btnClass += "border-green-500 bg-green-500/15 text-green-300"; letterClass += "bg-green-500 text-white"; }
+                  else if (isSelected) { btnClass += "border-red-500 bg-red-500/15 text-red-300"; letterClass += "bg-red-500 text-white"; }
+                  else { btnClass += "text-white opacity-35"; letterClass += "bg-white/10 text-white"; }
+                } else {
+                  btnClass += "text-white hover:border-freedom-orange hover:-translate-y-px";
+                  letterClass += "bg-white/10 text-white";
+                }
+                return (
+                  <button
+                    key={oIdx}
+                    onClick={() => { if (!quizState[qIdx]?.confirmed) setQuizState({ ...quizState, [qIdx]: { selected: oIdx, confirmed: true } }); }}
+                    className={btnClass}
+                  >
+                    <span className={letterClass}>{letters[oIdx] || oIdx + 1}</span>
+                    <span className="font-bold leading-snug" style={{ fontSize: `${Math.max(fontSize * 0.7, 15)}px` }}>{opt}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {state?.confirmed && q.explanation && (
+              <div className={`${GLASS_CARD} rounded-[18px] px-5 py-4 mt-5 max-w-5xl w-full animate-fadeIn flex items-start gap-3`}>
+                <span className="text-freedom-orange font-black text-[10px] tracking-[0.22em] uppercase mt-1 shrink-0">Why</span>
+                <p className="m-0 text-white/85 font-semibold italic leading-snug" style={{ fontSize: `${Math.max(fontSize * 0.62, 14)}px` }}>{q.explanation}</p>
+              </div>
+            )}
           </div>
         </div>
       );
